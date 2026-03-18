@@ -51,6 +51,10 @@ public static class ShadowCopy {
     /// </summary>
     public static void Cleanup(string shadowPath) {
         if (Directory.Exists(shadowPath)) {
+            // Reset readonly attributes (git pack files on Windows)
+            foreach (var file in Directory.GetFiles(shadowPath, "*", SearchOption.AllDirectories)) {
+                File.SetAttributes(file, FileAttributes.Normal);
+            }
             Directory.Delete(shadowPath, true);
         }
     }

@@ -16,12 +16,17 @@ public static class ChangeDetection {
         var changedFiles = GetChangedFilesSinceLastTag(remote, tagPrefix);
         if (changedFiles.Count == 0) return new List<string>();
 
+        // Resolve relative paths from git diff against the git working directory (PWD from CD)
+        var basePath = PWD;
+
         var changed = new List<string>();
         foreach (var project in projects) {
             var projectDir = Path.GetFullPath(Path.GetDirectoryName(project)!);
-            var hasChange = changedFiles.Any(f =>
-                Path.GetFullPath(f).StartsWith(
-                    projectDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
+            var hasChange = changedFiles.Any(f => {
+                var fullPath = Path.GetFullPath(Path.Combine(basePath, f));
+                return fullPath.StartsWith(
+                    projectDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+            });
 
             if (hasChange) {
                 changed.Add(project);
@@ -56,7 +61,6 @@ public static class ChangeDetection {
 
     private static List<string> ParseFileList(string output) {
         return output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(f => Path.GetFullPath(f))
             .ToList();
     }
 }

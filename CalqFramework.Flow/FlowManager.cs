@@ -54,7 +54,7 @@ public class FlowManager {
         // Redirect RUN output to stderr so stdout stays clean for JSON
         LocalTerminal.Out = Console.OpenStandardError();
 
-        var workingDirectory = Environment.CurrentDirectory;
+        var workingDirectory = PWD;
         var repoRoot = GitOperations.GetRepositoryRoot(workingDirectory);
 
         // §4: Project Discovery
