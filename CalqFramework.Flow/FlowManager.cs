@@ -67,6 +67,11 @@ public class FlowManager {
         List<string> changedProjects = ChangeDetection.DetectChangedProjects(projects, Remote, TagPrefix);
 
         if (changedProjects.Count == 0) {
+            // No project changes, but still update rolling branch to track latest commits
+            if (!dryRun && !string.IsNullOrEmpty(rollingBranch)) {
+                TaggingStrategy.UpdateRollingBranch(rollingBranch, Remote);
+            }
+
             return new PublishResult {
                 TargetVersion = (latestTag ?? new Version(0, 0, 0)).ToString(3),
                 PreviousVersion = latestTag?.ToString(3) ?? "",
