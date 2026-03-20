@@ -14,11 +14,11 @@ discover → detect changes → build → resolve base DLLs → IL compare → v
 
 1. Recursively discovers `*.*proj` files, excluding tests, examples, and nested projects.
 2. Detects which projects changed since the last version tag using `git diff`.
-3. Builds changed projects (and runs associated tests).
+3. Builds changed projects (and runs associated tests). Unchanged projects are also built for lockstep packing.
 4. Resolves the previous version's DLL via NuGet download or shadow-copy build.
 5. Compares current vs. base assemblies at the IL/metadata level using `MetadataLoadContext`.
 6. Computes the target version: breaking → minor bump, non-breaking → patch bump (pre-1.0 convention). Major bumps are manual only.
-7. Packs, pushes to configured NuGet sources, and creates a Git version tag.
+7. Packs all projects at the computed version, pushes to configured NuGet sources, and creates a Git version tag.
 
 ## Calq Flow vs. GitVersion
 
