@@ -53,6 +53,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      packages: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -65,7 +66,7 @@ jobs:
       - name: Calq Flow (publish)
         uses: calq-framework/flow@latest
         with:
-          subcommand: 'publish'
+          subcommand: 'publish --api-key ${{ github.token }}'
         env: ${{ secrets }}
 ```
 
