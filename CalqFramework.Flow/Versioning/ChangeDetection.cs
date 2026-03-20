@@ -1,31 +1,29 @@
-using static CalqFramework.Cmd.Terminal;
-
 namespace CalqFramework.Flow.Versioning;
 
 /// <summary>
-/// Detects which projects have changed since the last version tag (§7).
-/// A project is "changed" only if a file modification occurs within
-/// the project's own directory or its subdirectories.
+///     Detects which projects have changed since the last version tag (§7).
+///     A project is "changed" only if a file modification occurs within
+///     the project's own directory or its subdirectories.
 /// </summary>
 public static class ChangeDetection {
     /// <summary>
-    /// Returns the subset of projects that have file changes since the last tag.
+    ///     Returns the subset of projects that have file changes since the last tag.
     /// </summary>
-    public static List<string> DetectChangedProjects(
-        List<string> projects, string remote, string tagPrefix) {
-        var changedFiles = GetChangedFilesSinceLastTag(remote, tagPrefix);
-        if (changedFiles.Count == 0) return new List<string>();
+    public static List<string> DetectChangedProjects(List<string> projects, string remote, string tagPrefix) {
+        List<string> changedFiles = GetChangedFilesSinceLastTag(remote, tagPrefix);
+        if (changedFiles.Count == 0) {
+            return [];
+        }
 
         // Resolve relative paths from git diff against the git working directory (PWD from CD)
-        var basePath = PWD;
+        string basePath = PWD;
 
         var changed = new List<string>();
-        foreach (var project in projects) {
-            var projectDir = Path.GetFullPath(Path.GetDirectoryName(project)!);
-            var hasChange = changedFiles.Any(f => {
-                var fullPath = Path.GetFullPath(Path.Combine(basePath, f));
-                return fullPath.StartsWith(
-                    projectDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+        foreach (string project in projects) {
+            string projectDir = Path.GetFullPath(Path.GetDirectoryName(project)!);
+            bool hasChange = changedFiles.Any(f => {
+                string fullPath = Path.GetFullPath(Path.Combine(basePath, f));
+                return fullPath.StartsWith(projectDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
             });
 
             if (hasChange) {
@@ -40,27 +38,26 @@ public static class ChangeDetection {
         // Find the latest local tag matching the prefix
         string lastTag;
         try {
-            lastTag = CMD($"git describe --tags --match \"{tagPrefix}[0-9]*.[0-9]*.[0-9]*\" --abbrev=0").Trim();
+            lastTag = CMD($"git describe --tags --match \"{tagPrefix}[0-9]*.[0-9]*.[0-9]*\" --abbrev=0")
+                .Trim();
         } catch {
             // No tags found — everything is changed relative to the initial commit
             try {
-                var output = CMD("git diff --name-only HEAD");
+                string output = CMD("git diff --name-only HEAD");
                 return ParseFileList(output);
             } catch {
-                return new List<string>();
+                return [];
             }
         }
 
         try {
-            var output = CMD($"git diff --name-only {lastTag}..HEAD");
+            string output = CMD($"git diff --name-only {lastTag}..HEAD");
             return ParseFileList(output);
         } catch {
-            return new List<string>();
+            return [];
         }
     }
 
-    private static List<string> ParseFileList(string output) {
-        return output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .ToList();
-    }
+    private static List<string> ParseFileList(string output) =>
+        [.. output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
 }

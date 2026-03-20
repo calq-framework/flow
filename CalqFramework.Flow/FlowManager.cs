@@ -3,71 +3,67 @@ using CalqFramework.Flow.Discovery;
 using CalqFramework.Flow.Git;
 using CalqFramework.Flow.Pipeline;
 using CalqFramework.Flow.Versioning;
-using static CalqFramework.Cmd.Terminal;
 
 namespace CalqFramework.Flow;
 
 /// <summary>
-/// Deterministic versioning and publishing for .NET monorepos.
+///     Deterministic versioning and publishing for .NET monorepos.
 /// </summary>
 public class FlowManager {
     // ── Global Options ──
 
     /// <summary>
-    /// NuGet source names to push packages to.
-    /// If "nuget.org" is specified, the NUGET_API_KEY environment variable is used automatically.
+    ///     NuGet source names to push packages to.
+    ///     If "nuget.org" is specified, the NUGET_API_KEY environment variable is used automatically.
     /// </summary>
-    public List<string> Sources { get; set; } = new();
+    public List<string> Sources { get; set; } = [];
 
     /// <summary>
-    /// Git remote name for tag resolution and fetch operations.
+    ///     Git remote name for tag resolution and fetch operations.
     /// </summary>
     public string Remote { get; set; } = "origin";
 
     /// <summary>
-    /// Prefix for version tags.
+    ///     Prefix for version tags.
     /// </summary>
     public string TagPrefix { get; set; } = "v";
 
     // ── Subcommands ──
 
     /// <summary>
-    /// Publishes changed projects to configured NuGet sources.
-    /// Pipeline: discover → detect changes → build current → resolve base DLLs →
-    /// compare → compute version → pack → push → tag.
+    ///     Publishes changed projects to configured NuGet sources.
+    ///     Pipeline: discover → detect changes → build current → resolve base DLLs →
+    ///     compare → compute version → pack → push → tag.
     /// </summary>
     /// <param name="dryRun">Log actions without modifying the filesystem, Git state, or NuGet registries.</param>
     /// <param name="ignoreAccessModifiers">Include internal member changes (for InternalsVisibleTo).</param>
     /// <param name="sign">Certificate fingerprint or path for signing .nupkg files before push.</param>
     /// <param name="rollingBranch">Branch pointer to force-update on release. Empty string disables.</param>
-    public PublishResult Publish(
-        bool dryRun = false,
-        bool ignoreAccessModifiers = false,
-        string sign = "",
-        string rollingBranch = "latest"
-    ) {
+    public PublishResult Publish(bool dryRun = false, bool ignoreAccessModifiers = false, string sign = "", string rollingBranch = "latest") {
         if (Sources.Count == 0) {
-            Sources = new() { "main" };
+            Sources = [
+                "main"
+            ];
         }
 
         // Redirect RUN output to stderr so stdout stays clean for JSON
         LocalTerminal.Out = Console.OpenStandardError();
 
-        var workingDirectory = PWD;
-        var repoRoot = GitOperations.GetRepositoryRoot(workingDirectory);
+        string workingDirectory = PWD;
+        string repoRoot = GitOperations.GetRepositoryRoot(workingDirectory);
 
         // §4: Project Discovery
-        var projects = ProjectDiscovery.DiscoverProjects(workingDirectory);
+        List<string> projects = ProjectDiscovery.DiscoverProjects(workingDirectory);
 
         // §5: Test Project Association
-        var testAssociations = TestProjectAssociation.FindTestProjects(projects, repoRoot);
+        Dictionary<string, string> testAssociations = TestProjectAssociation.FindTestProjects(projects, repoRoot);
 
         // §6: Version Evaluation
-        var latestTag = VersionResolver.ResolveLatestTagVersion(Remote, TagPrefix);
-        var projectVersions = VersionResolver.ResolveProjectVersions(projects);
+        Version? latestTag = VersionResolver.ResolveLatestTagVersion(Remote, TagPrefix);
+        Dictionary<string, Version> projectVersions = VersionResolver.ResolveProjectVersions(projects);
 
         // §7: Changed Project Detection
-        var changedProjects = ChangeDetection.DetectChangedProjects(projects, Remote, TagPrefix);
+        List<string> changedProjects = ChangeDetection.DetectChangedProjects(projects, Remote, TagPrefix);
 
         if (changedProjects.Count == 0) {
             return new PublishResult {
@@ -79,7 +75,7 @@ public class FlowManager {
 
         // ── Phase 1: Build current projects ──
         // Each changed project is built once. Test projects are built and run here too.
-        foreach (var project in changedProjects) {
+        foreach (string project in changedProjects) {
             BuildPipeline.BuildCurrent(project, testAssociations);
         }
 
@@ -89,29 +85,25 @@ public class FlowManager {
         var diffResults = new List<ProjectDiffResult>();
 
         try {
-            foreach (var project in changedProjects) {
-                var projectName = Path.GetFileNameWithoutExtension(project);
-                var projectDir = Path.GetDirectoryName(project)!;
+            foreach (string project in changedProjects) {
+                string projectName = Path.GetFileNameWithoutExtension(project);
+                string projectDir = Path.GetDirectoryName(project)!;
 
-                var currentDll = SyntacticVersioning.FindAssembly(projectDir, projectName);
+                string? currentDll = SyntacticVersioning.FindAssembly(projectDir, projectName);
 
                 // Resolve base DLL: NuGet first, then shadow copy
                 string? baseDll = null;
                 if (latestTag != null) {
-                    baseDll = BuildPipeline.ResolveBaseDll(
-                        project, projectName, latestTag, Sources, shadowCopyPath: null);
+                    baseDll = BuildPipeline.ResolveBaseDll(project, projectName, latestTag, Sources, null);
 
                     // NuGet failed — create shadow copy (once) and build there
                     if (baseDll == null) {
-                        shadowCopyPath ??= ShadowCopy.Create(
-                            workingDirectory, repoRoot, Remote, TagPrefix);
-                        baseDll = BuildPipeline.ResolveBaseDll(
-                            project, projectName, latestTag, Sources, shadowCopyPath);
+                        shadowCopyPath ??= ShadowCopy.Create(workingDirectory, repoRoot, Remote, TagPrefix);
+                        baseDll = BuildPipeline.ResolveBaseDll(project, projectName, latestTag, Sources, shadowCopyPath);
                     }
                 }
 
-                var diff = SyntacticVersioning.Compare(
-                    projectName, currentDll, baseDll, ignoreAccessModifiers);
+                ProjectDiffResult diff = SyntacticVersioning.Compare(projectName, currentDll, baseDll, ignoreAccessModifiers);
                 diffResults.Add(diff);
             }
         } finally {
@@ -121,25 +113,26 @@ public class FlowManager {
         }
 
         // §9: Version Bumping
-        var targetVersion = VersionBumper.ComputeTargetVersion(
-            latestTag, projectVersions, diffResults);
+        Version targetVersion = VersionBumper.ComputeTargetVersion(latestTag, projectVersions, diffResults);
 
         // ── Phase 3: Pack and push ──
         var nupkgPaths = new List<string>();
-        foreach (var project in changedProjects) {
-            var nupkg = BuildPipeline.Pack(project, targetVersion);
-            if (nupkg != null) nupkgPaths.Add(nupkg);
+        foreach (string project in changedProjects) {
+            string? nupkg = BuildPipeline.Pack(project, targetVersion);
+            if (nupkg != null) {
+                nupkgPaths.Add(nupkg);
+            }
         }
 
         var publishedPackages = new List<string>();
         if (dryRun) {
-            foreach (var project in changedProjects) {
-                var name = Path.GetFileNameWithoutExtension(project);
+            foreach (string project in changedProjects) {
+                string name = Path.GetFileNameWithoutExtension(project);
                 Console.Error.WriteLine($"[dry-run] Would publish {name} {targetVersion.ToString(3)}");
                 publishedPackages.Add(name);
             }
         } else {
-            publishedPackages = PublishPipeline.Execute(nupkgPaths, Sources, sign, dryRun: false);
+            publishedPackages = PublishPipeline.Execute(nupkgPaths, Sources, sign, false);
         }
 
         // §12: Tagging & Branching
@@ -153,7 +146,7 @@ public class FlowManager {
         return new PublishResult {
             TargetVersion = targetVersion.ToString(3),
             PreviousVersion = latestTag?.ToString(3) ?? "",
-            ChangedProjects = changedProjects.Select(p => Path.GetFileNameWithoutExtension(p)).ToList(),
+            ChangedProjects = [.. changedProjects.Select(p => Path.GetFileNameWithoutExtension(p))],
             PublishedPackages = publishedPackages,
             Diffs = diffResults,
             DryRun = dryRun

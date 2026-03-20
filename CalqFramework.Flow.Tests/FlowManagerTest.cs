@@ -1,11 +1,9 @@
-using static CalqFramework.Cmd.Terminal;
-
 namespace CalqFramework.Flow.Tests;
 
 public class FlowManagerTest : IDisposable {
     private readonly string _bareRepo;
-    private readonly string _workDir;
     private readonly string _nugetFeed;
+    private readonly string _workDir;
 
     public FlowManagerTest() {
         TestHelper.SuppressLogging();
@@ -25,29 +23,29 @@ public class FlowManagerTest : IDisposable {
     public void Publish_DryRun_ReturnsResultWithoutMutatingState() {
         // Setup: create a project, commit, tag v1.0.0
         TestHelper.CreateProject(_workDir, "MyLib", "1.0.0");
-        TestHelper.CreateSourceFile(Path.Combine(_workDir, "MyLib"), "Greeter",
-            "namespace MyLib; public class Greeter { public string Greet() => \"hello\"; }");
+        TestHelper.CreateSourceFile(Path.Combine(_workDir, "MyLib"), "Greeter", "namespace MyLib; public class Greeter { public string Greet() => \"hello\"; }");
         TestHelper.CommitAndPush(_workDir, "initial");
         TestHelper.TagAndPush(_workDir, "v1.0.0");
 
         // Make a change after the tag
-        File.WriteAllText(Path.Combine(_workDir, "MyLib", "Greeter.cs"),
-            "namespace MyLib; public class Greeter { public string Greet() => \"hello v2\"; }");
-        var prev = PWD;
+        File.WriteAllText(Path.Combine(_workDir, "MyLib", "Greeter.cs"), "namespace MyLib; public class Greeter { public string Greet() => \"hello v2\"; }");
+        string prev = PWD;
         CD(_workDir);
         CMD("git add -A");
         CMD("git commit -m \"breaking change\"");
         CD(prev);
 
         // Execute dry-run
-        var flow = new FlowManager {
-            Sources = new List<string> { _nugetFeed },
+        FlowManager flow = new() {
+            Sources = [
+                _nugetFeed
+            ],
             Remote = "origin",
             TagPrefix = "v"
         };
 
         CD(_workDir);
-        var result = flow.Publish(dryRun: true);
+        PublishResult result = flow.Publish(true);
         CD(prev);
 
         // Verify result
@@ -58,7 +56,7 @@ public class FlowManagerTest : IDisposable {
 
         // Verify no new tags were created (dry-run)
         CD(_workDir);
-        var tags = CMD("git ls-remote --tags origin");
+        string tags = CMD("git ls-remote --tags origin");
         CD(prev);
         Assert.DoesNotContain("v1.1.0", tags);
         Assert.DoesNotContain("v1.0.1", tags);
@@ -70,18 +68,22 @@ public class FlowManagerTest : IDisposable {
         TestHelper.CreateSourceFile(Path.Combine(_workDir, "MyLib"), "Foo");
         TestHelper.CommitAndPush(_workDir, "init");
 
-        var flow = new FlowManager {
+        FlowManager flow = new() {
             Remote = "origin",
             TagPrefix = "v"
             // Sources left empty — should default to ["main"]
         };
 
-        var prev = PWD;
+        string prev = PWD;
         CD(_workDir);
-        var result = flow.Publish(dryRun: true);
+        PublishResult result = flow.Publish(true);
         CD(prev);
 
-        Assert.Equal(new List<string> { "main" }, flow.Sources);
+        Assert.Equal(
+            [
+                "main"
+            ],
+            flow.Sources);
     }
 
     [Fact]
@@ -93,15 +95,17 @@ public class FlowManagerTest : IDisposable {
 
         // No changes after the tag
 
-        var flow = new FlowManager {
-            Sources = new List<string> { _nugetFeed },
+        FlowManager flow = new() {
+            Sources = [
+                _nugetFeed
+            ],
             Remote = "origin",
             TagPrefix = "v"
         };
 
-        var prev = PWD;
+        string prev = PWD;
         CD(_workDir);
-        var result = flow.Publish(dryRun: true);
+        PublishResult result = flow.Publish(true);
         CD(prev);
 
         Assert.True(result.DryRun);

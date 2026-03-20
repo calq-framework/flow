@@ -5,35 +5,49 @@ namespace CalqFramework.Flow.Tests.Diff;
 public class SyntacticDiffTest {
     [Fact]
     public void MemberChange_DeletedIsBreaking() {
-        var change = new MemberChange { Kind = ChangeKind.Deleted };
+        MemberChange change = new() {
+            Kind = ChangeKind.Deleted
+        };
         Assert.True(change.IsBreaking);
     }
 
     [Fact]
     public void MemberChange_AttributeModifiedIsBreaking() {
-        var change = new MemberChange { Kind = ChangeKind.AttributeModified };
+        MemberChange change = new() {
+            Kind = ChangeKind.AttributeModified
+        };
         Assert.True(change.IsBreaking);
     }
 
     [Fact]
     public void MemberChange_AddedIsNotBreaking() {
-        var change = new MemberChange { Kind = ChangeKind.Added };
+        MemberChange change = new() {
+            Kind = ChangeKind.Added
+        };
         Assert.False(change.IsBreaking);
     }
 
     [Fact]
     public void MemberChange_ILChangedIsNotBreaking() {
-        var change = new MemberChange { Kind = ChangeKind.ILChanged };
+        MemberChange change = new() {
+            Kind = ChangeKind.ILChanged
+        };
         Assert.False(change.IsBreaking);
     }
 
     [Fact]
     public void ProjectDiffResult_HasBreakingChanges_WhenDeletedMember() {
-        var result = new ProjectDiffResult {
+        ProjectDiffResult result = new() {
             ProjectName = "Lib",
             Changes = {
-                new MemberChange { MemberIdentity = "Foo", Kind = ChangeKind.Added },
-                new MemberChange { MemberIdentity = "Bar", Kind = ChangeKind.Deleted }
+                new MemberChange {
+                    MemberIdentity = "Foo",
+                    Kind = ChangeKind.Added
+                },
+                new MemberChange {
+                    MemberIdentity = "Bar",
+                    Kind = ChangeKind.Deleted
+                }
             }
         };
 
@@ -43,10 +57,13 @@ public class SyntacticDiffTest {
 
     [Fact]
     public void ProjectDiffResult_NoBreakingChanges_WhenOnlyAdded() {
-        var result = new ProjectDiffResult {
+        ProjectDiffResult result = new() {
             ProjectName = "Lib",
             Changes = {
-                new MemberChange { MemberIdentity = "Foo", Kind = ChangeKind.Added }
+                new MemberChange {
+                    MemberIdentity = "Foo",
+                    Kind = ChangeKind.Added
+                }
             }
         };
 

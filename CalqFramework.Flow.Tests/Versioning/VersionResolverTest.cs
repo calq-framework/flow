@@ -1,5 +1,4 @@
 using CalqFramework.Flow.Versioning;
-using static CalqFramework.Cmd.Terminal;
 
 namespace CalqFramework.Flow.Tests.Versioning;
 
@@ -29,9 +28,9 @@ public class VersionResolverTest : IDisposable {
         TestHelper.CommitAndPush(_workDir, "v2");
         TestHelper.TagAndPush(_workDir, "v1.1.0");
 
-        var prev = PWD;
+        string prev = PWD;
         CD(_workDir);
-        var version = VersionResolver.ResolveLatestTagVersion("origin", "v");
+        Version? version = VersionResolver.ResolveLatestTagVersion("origin", "v");
         CD(prev);
 
         Assert.NotNull(version);
@@ -43,9 +42,9 @@ public class VersionResolverTest : IDisposable {
         TestHelper.CreateProject(_workDir, "Lib");
         TestHelper.CommitAndPush(_workDir, "init");
 
-        var prev = PWD;
+        string prev = PWD;
         CD(_workDir);
-        var version = VersionResolver.ResolveLatestTagVersion("origin", "v");
+        Version? version = VersionResolver.ResolveLatestTagVersion("origin", "v");
         CD(prev);
 
         Assert.Null(version);
@@ -53,9 +52,9 @@ public class VersionResolverTest : IDisposable {
 
     [Fact]
     public void ReadVersionFromProject_ReadsVersionElement() {
-        var proj = TestHelper.CreateProject(_workDir, "Lib", "2.3.4");
+        string proj = TestHelper.CreateProject(_workDir, "Lib", "2.3.4");
 
-        var version = VersionResolver.ReadVersionFromProject(proj);
+        Version? version = VersionResolver.ReadVersionFromProject(proj);
 
         Assert.NotNull(version);
         Assert.Equal(new Version(2, 3, 4), version);
@@ -63,10 +62,12 @@ public class VersionResolverTest : IDisposable {
 
     [Fact]
     public void ReadVersionFromProject_ReadsVersionPrefix() {
-        var projDir = Path.Combine(_workDir, "PrefixLib");
+        string projDir = Path.Combine(_workDir, "PrefixLib");
         Directory.CreateDirectory(projDir);
-        var projPath = Path.Combine(projDir, "PrefixLib.csproj");
-        File.WriteAllText(projPath, @"<Project Sdk=""Microsoft.NET.Sdk"">
+        string projPath = Path.Combine(projDir, "PrefixLib.csproj");
+        File.WriteAllText(
+            projPath,
+            @"<Project Sdk=""Microsoft.NET.Sdk"">
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <VersionPrefix>3.2.1</VersionPrefix>
@@ -74,7 +75,7 @@ public class VersionResolverTest : IDisposable {
   </PropertyGroup>
 </Project>");
 
-        var version = VersionResolver.ReadVersionFromProject(projPath);
+        Version? version = VersionResolver.ReadVersionFromProject(projPath);
 
         Assert.NotNull(version);
         Assert.Equal(new Version(3, 2, 1), version);
@@ -82,17 +83,19 @@ public class VersionResolverTest : IDisposable {
 
     [Fact]
     public void ReadVersionFromProject_StripsPrereleaseSuffix() {
-        var projDir = Path.Combine(_workDir, "SuffixLib");
+        string projDir = Path.Combine(_workDir, "SuffixLib");
         Directory.CreateDirectory(projDir);
-        var projPath = Path.Combine(projDir, "SuffixLib.csproj");
-        File.WriteAllText(projPath, @"<Project Sdk=""Microsoft.NET.Sdk"">
+        string projPath = Path.Combine(projDir, "SuffixLib.csproj");
+        File.WriteAllText(
+            projPath,
+            @"<Project Sdk=""Microsoft.NET.Sdk"">
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <Version>1.2.3-rc.1</Version>
   </PropertyGroup>
 </Project>");
 
-        var version = VersionResolver.ReadVersionFromProject(projPath);
+        Version? version = VersionResolver.ReadVersionFromProject(projPath);
 
         Assert.NotNull(version);
         Assert.Equal(new Version(1, 2, 3), version);
@@ -100,10 +103,14 @@ public class VersionResolverTest : IDisposable {
 
     [Fact]
     public void ResolveProjectVersions_MapsAllProjects() {
-        var proj1 = TestHelper.CreateProject(_workDir, "LibA", "1.0.0");
-        var proj2 = TestHelper.CreateProject(_workDir, "LibB", "2.0.0");
+        string proj1 = TestHelper.CreateProject(_workDir, "LibA", "1.0.0");
+        string proj2 = TestHelper.CreateProject(_workDir, "LibB", "2.0.0");
 
-        var versions = VersionResolver.ResolveProjectVersions(new List<string> { proj1, proj2 });
+        Dictionary<string, Version> versions = VersionResolver.ResolveProjectVersions(
+            [
+                proj1,
+                proj2
+            ]);
 
         Assert.Equal(2, versions.Count);
         Assert.Equal(new Version(1, 0, 0), versions[proj1]);
