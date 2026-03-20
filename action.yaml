@@ -56,6 +56,23 @@ runs:
         echo "DOTNET_VERSION=$DOTNET_VERSION" >> $GITHUB_ENV
         echo "[System] Resolved $TOOL_NAME target version: $VERSION"
 
+    - name: Configure NuGet Environment
+      shell: bash
+      run: |
+        echo "[System] Initializing NuGet configuration..."
+        CONFIG_REPO="https://x-access-token:${{ github.token }}@github.com/${{ github.repository_owner }}/${{ inputs.nuget-config-repo }}.git"
+        TEMP=$(mktemp -d)
+        if git clone --depth 1 "$CONFIG_REPO" "$TEMP" 2>/dev/null; then
+          mkdir -p ~/.nuget/NuGet
+          if [ -f "$TEMP/.nuget/NuGet/NuGet.Config" ]; then
+            envsubst < "$TEMP/.nuget/NuGet/NuGet.Config" > ~/.nuget/NuGet/NuGet.Config
+            echo "[Info] Successfully synchronized configuration from ${{ inputs.nuget-config-repo }}"
+          fi
+        else
+          echo "[Info] No specialized NuGet configuration detected. Using system defaults."
+        fi
+        rm -rf "$TEMP"
+
     - name: Cache Tool Binary
       # Self-test mode should not use binary cache
       if: inputs.cache == 'true' && github.repository != 'calq-framework/flow'
@@ -83,23 +100,6 @@ runs:
         dotnet tool uninstall --global $TOOL_PACKAGE || true
         dotnet tool install --global --add-source ./dist --version "$V" $TOOL_PACKAGE
         echo "[Info] Local version $V built and installed successfully."
-
-    - name: Configure NuGet Environment
-      shell: bash
-      run: |
-        echo "[System] Initializing NuGet configuration..."
-        CONFIG_REPO="https://x-access-token:${{ github.token }}@github.com/${{ github.repository_owner }}/${{ inputs.nuget-config-repo }}.git"
-        TEMP=$(mktemp -d)
-        if git clone --depth 1 "$CONFIG_REPO" "$TEMP" 2>/dev/null; then
-          mkdir -p ~/.nuget/NuGet
-          if [ -f "$TEMP/.nuget/NuGet/NuGet.Config" ]; then
-            envsubst < "$TEMP/.nuget/NuGet/NuGet.Config" > ~/.nuget/NuGet/NuGet.Config
-            echo "[Info] Successfully synchronized configuration from ${{ inputs.nuget-config-repo }}"
-          fi
-        else
-          echo "[Info] No specialized NuGet configuration detected. Using system defaults."
-        fi
-        rm -rf "$TEMP"
 
     - name: Restore Project Packages Cache
       uses: actions/cache@v4
