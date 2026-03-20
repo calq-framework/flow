@@ -41,9 +41,9 @@ public static class ChangeDetection {
             lastTag = CMD($"git describe --tags --match \"{tagPrefix}[0-9]*.[0-9]*.[0-9]*\" --abbrev=0")
                 .Trim();
         } catch {
-            // No tags found — everything is changed relative to the initial commit
+            // No tags found — all committed files are "changed" (diff against empty tree)
             try {
-                string output = CMD("git diff --name-only HEAD");
+                string output = CMD("git ls-files");
                 return ParseFileList(output);
             } catch {
                 return [];
