@@ -80,9 +80,14 @@ public class FlowManager {
         }
 
         // ── Phase 1: Build current projects ──
-        // Each changed project is built once. Test projects are built and run here too.
+        // Changed projects are built and tested. Remaining projects are built for lockstep packing.
         foreach (string project in changedProjects) {
             BuildPipeline.BuildCurrent(project, testAssociations);
+        }
+        foreach (string project in projects) {
+            if (!changedProjects.Contains(project)) {
+                BuildPipeline.BuildCurrent(project, testAssociations);
+            }
         }
 
         // ── Phase 2: Resolve base DLLs and compare ──
@@ -121,9 +126,9 @@ public class FlowManager {
         // §9: Version Bumping
         Version targetVersion = VersionBumper.ComputeTargetVersion(latestTag, projectVersions, diffResults);
 
-        // ── Phase 3: Pack and push ──
+        // ── Phase 3: Pack and push (lockstep — all projects at the same version) ──
         var nupkgPaths = new List<string>();
-        foreach (string project in changedProjects) {
+        foreach (string project in projects) {
             string? nupkg = BuildPipeline.Pack(project, targetVersion);
             if (nupkg != null) {
                 nupkgPaths.Add(nupkg);
@@ -132,7 +137,7 @@ public class FlowManager {
 
         var publishedPackages = new List<string>();
         if (dryRun) {
-            foreach (string project in changedProjects) {
+            foreach (string project in projects) {
                 string name = Path.GetFileNameWithoutExtension(project);
                 Console.Error.WriteLine($"[dry-run] Would publish {name} {targetVersion.ToString(3)}");
                 publishedPackages.Add(name);
@@ -152,7 +157,7 @@ public class FlowManager {
         return new PublishResult {
             TargetVersion = targetVersion.ToString(3),
             PreviousVersion = latestTag?.ToString(3) ?? "",
-            ChangedProjects = [.. changedProjects.Select(p => Path.GetFileNameWithoutExtension(p))],
+            ChangedProjects = [.. projects.Select(p => Path.GetFileNameWithoutExtension(p))],
             PublishedPackages = publishedPackages,
             Diffs = diffResults,
             DryRun = dryRun
