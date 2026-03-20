@@ -1,0 +1,118 @@
+name: 'Calq Flow'
+description: 'Automated versioning and publishing for .NET monorepos'
+inputs:
+  subcommand:
+    description: 'The flow subcommand to execute (e.g., publish)'
+    required: true
+  nuget-config-repo:
+    description: 'Repository to pull NuGet.Config from'
+    required: false
+    default: '.nuget'
+  cache:
+    description: 'Enable caching for the tool and NuGet packages'
+    required: false
+    default: 'true'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup & Resolve Tool Version
+      id: version-resolver
+      shell: bash
+      run: |
+        # Centralized configuration (easy to adapt for other tools later)
+        TOOL_NAME="Calq Flow"
+        TOOL_REPO_URL="https://github.com/calq-framework/flow.git"
+        TOOL_PACKAGE="CalqFramework.Flow"
+        TOOL_CMD="flow"
+        
+        # Export for subsequent bash steps
+        echo "TOOL_PACKAGE=$TOOL_PACKAGE" >> $GITHUB_ENV
+        echo "TOOL_CMD=$TOOL_CMD" >> $GITHUB_ENV
+
+        REF="${{ github.action_ref }}"
+        
+        # Determine if we need to look up the latest tag over the network
+        if [[ "$REF" == "main" || "$REF" == "latest" || -z "$REF" ]]; then
+          echo "[System] Querying latest release tag from $TOOL_REPO_URL..."
+          # Get highest semver tag: sort by version, take last, strip ref path
+          LATEST_TAG=$(git ls-remote --tags --sort='v:refname' "$TOOL_REPO_URL" 'v*.*.*' | tail -n1 | cut -d/ -f3 | sed 's/\^{}//')
+          
+          if [ -z "$LATEST_TAG" ]; then
+            echo "[Warning] Could not resolve remote tag. Falling back to latest binary."
+            VERSION="latest"
+            DOTNET_VERSION="*"
+          else
+            VERSION=$(echo "$LATEST_TAG" | grep -oP '\d+\.\d+\.\d+')
+            DOTNET_VERSION="$VERSION"
+          fi
+        else
+          # User is pinned to a specific version (e.g., @v1.2.3)
+          VERSION=$(echo "$REF" | grep -oP '\d+\.\d+\.\d+' || echo "latest")
+          DOTNET_VERSION="$VERSION"
+        fi
+        
+        echo "TOOL_VERSION=$VERSION" >> $GITHUB_ENV
+        echo "DOTNET_VERSION=$DOTNET_VERSION" >> $GITHUB_ENV
+        echo "[System] Resolved $TOOL_NAME target version: $VERSION"
+
+    - name: Cache Tool Binary
+      # Self-test mode should not use binary cache
+      if: inputs.cache == 'true' && github.repository != 'calq-framework/flow'
+      id: cache-tool
+      uses: actions/cache@v4
+      with:
+        path: ~/.dotnet/tools
+        key: ${{ runner.os }}-dotnet-tool-calq-flow-${{ env.TOOL_VERSION }}
+
+    - name: Install Tool (External)
+      if: github.repository != 'calq-framework/flow' && steps.cache-tool.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        echo "[Action] Synchronizing $TOOL_PACKAGE @ ${{ env.DOTNET_VERSION }}..."
+        dotnet tool update --global $TOOL_PACKAGE --version "${{ env.DOTNET_VERSION }}"
+
+    - name: Install Tool (Self-Test)
+      if: github.repository == 'calq-framework/flow'
+      shell: bash
+      run: |
+        echo "[System] Source repository detected. Building local tool context..."
+        dotnet pack -c Release -o ./dist --nologo
+        PACKAGE=$(ls ./dist/*.nupkg | head -n 1)
+        V=$(echo $PACKAGE | grep -oP '\d+\.\d+\.\d+')
+        dotnet tool uninstall --global $TOOL_PACKAGE || true
+        dotnet tool install --global --add-source ./dist --version "$V" $TOOL_PACKAGE
+        echo "[Info] Local version $V built and installed successfully."
+
+    - name: Configure NuGet Environment
+      shell: bash
+      run: |
+        echo "[System] Initializing NuGet configuration..."
+        CONFIG_REPO="https://x-access-token:${{ github.token }}@github.com/${{ github.repository_owner }}/${{ inputs.nuget-config-repo }}.git"
+        TEMP=$(mktemp -d)
+        if git clone --depth 1 "$CONFIG_REPO" "$TEMP" 2>/dev/null; then
+          mkdir -p ~/.nuget/NuGet
+          if [ -f "$TEMP/.nuget/NuGet/NuGet.Config" ]; then
+            envsubst < "$TEMP/.nuget/NuGet/NuGet.Config" > ~/.nuget/NuGet/NuGet.Config
+            echo "[Info] Successfully synchronized configuration from ${{ inputs.nuget-config-repo }}"
+          fi
+        else
+          echo "[Info] No specialized NuGet configuration detected. Using system defaults."
+        fi
+        rm -rf "$TEMP"
+
+    - name: Restore Project Packages Cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.nuget/packages
+        key: ${{ runner.os }}-dotnet-cache-${{ hashFiles('**/*.csproj', '**/*.fsproj', '**/*.sln', '**/*.props', '**/*.targets', '**/packages.lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-dotnet-cache-
+          ${{ runner.os }}-nuget-
+
+    - name: Execute Tool Command
+      shell: bash
+      run: |
+        export PATH="$PATH:$HOME/.dotnet/tools"
+        echo "[Running] $TOOL_CMD ${{ inputs.subcommand }}"
+        $TOOL_CMD ${{ inputs.subcommand }}
