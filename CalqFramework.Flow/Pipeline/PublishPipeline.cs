@@ -7,7 +7,7 @@ public static class PublishPipeline {
     /// <summary>
     ///     Pushes already-packed .nupkg files to all configured sources.
     /// </summary>
-    public static List<string> Execute(List<string> nupkgPaths, List<string> sources, string sign, bool dryRun) {
+    public static List<string> Execute(List<string> nupkgPaths, List<string> sources, string sign, string apiKey, bool dryRun) {
         var publishedPackages = new List<string>();
 
         foreach (string nupkgPath in nupkgPaths) {
@@ -20,7 +20,7 @@ public static class PublishPipeline {
                 continue;
             }
 
-            PushPackage(nupkgPath, sources, sign);
+            PushPackage(nupkgPath, sources, sign, apiKey);
             publishedPackages.Add(packageId);
         }
 
@@ -30,7 +30,7 @@ public static class PublishPipeline {
     /// <summary>
     ///     Pushes a .nupkg to all configured sources (§3, §11, §14).
     /// </summary>
-    private static void PushPackage(string nupkgPath, List<string> sources, string sign) {
+    private static void PushPackage(string nupkgPath, List<string> sources, string sign, string apiKey) {
         // §11: Optional signing
         if (!string.IsNullOrEmpty(sign)) {
             RUN($"dotnet nuget sign \"{nupkgPath}\" --certificate-fingerprint {sign}");
@@ -39,9 +39,7 @@ public static class PublishPipeline {
         foreach (string source in sources) {
             string pushCmd = $"dotnet nuget push \"{nupkgPath}\" --source {source} --skip-duplicate";
 
-            // §3: Special case for nuget.org — use NUGET_API_KEY
-            if (source.Equals("nuget.org", StringComparison.OrdinalIgnoreCase)) {
-                string apiKey = Environment.GetEnvironmentVariable("NUGET_API_KEY") ?? "";
+            if (!string.IsNullOrEmpty(apiKey)) {
                 pushCmd += $" --api-key {apiKey}";
             }
 

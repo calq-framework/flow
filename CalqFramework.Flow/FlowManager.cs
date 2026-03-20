@@ -39,7 +39,8 @@ public class FlowManager {
     /// <param name="ignoreAccessModifiers">Include internal member changes (for InternalsVisibleTo).</param>
     /// <param name="sign">Certificate fingerprint or path for signing .nupkg files before push.</param>
     /// <param name="rollingBranch">Branch pointer to force-update on release. Empty string disables.</param>
-    public PublishResult Publish(bool dryRun = false, bool ignoreAccessModifiers = false, string sign = "", string rollingBranch = "latest") {
+    /// <param name="apiKey">API key for authenticated NuGet push operations.</param>
+    public PublishResult Publish(bool dryRun = false, bool ignoreAccessModifiers = false, string sign = "", string rollingBranch = "latest", string apiKey = "") {
         if (Sources.Count == 0) {
             Sources = [
                 "main"
@@ -132,7 +133,7 @@ public class FlowManager {
                 publishedPackages.Add(name);
             }
         } else {
-            publishedPackages = PublishPipeline.Execute(nupkgPaths, Sources, sign, false);
+            publishedPackages = PublishPipeline.Execute(nupkgPaths, Sources, sign, apiKey, false);
         }
 
         // §12: Tagging & Branching
