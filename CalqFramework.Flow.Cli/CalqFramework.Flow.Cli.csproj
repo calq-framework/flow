@@ -8,10 +8,23 @@
     <RootNamespace>CalqFramework.Flow.Cli</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>calq-flow</ToolCommandName>
+    <PackageId>CalqFramework.Flow.Cli</PackageId>
+    <Version>0.1.0</Version>
+    <PackageProjectUrl>https://github.com/calq-framework</PackageProjectUrl>
+    <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
+    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+    <Copyright>2025-2026 Calq Framework</Copyright>
   </PropertyGroup>
 
   <ItemGroup>
+    <None Include="..\LICENSE.txt" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="CalqFramework.Cli" Version="0.63.1" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
