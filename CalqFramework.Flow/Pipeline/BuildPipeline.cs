@@ -1,26 +1,21 @@
 using CalqFramework.Flow.Diff;
-using static CalqFramework.Cmd.Terminal;
 
 namespace CalqFramework.Flow.Pipeline;
 
 /// <summary>
-/// Builds projects and resolves base DLLs for comparison (§11, §13).
+///     Builds projects and resolves base DLLs for comparison (§11, §13).
 /// </summary>
 public static class BuildPipeline {
-    private const string DeterministicFlags =
-        "-p:Deterministic=true -p:ContinuousIntegrationBuild=true " +
-        "-p:PathMap=\"$(MSBuildProjectDirectory)=/src\"";
+    private const string DeterministicFlags = "-p:Deterministic=true -p:ContinuousIntegrationBuild=true " + "-p:PathMap=\"$(MSBuildProjectDirectory)=/src\"";
 
     /// <summary>
-    /// Builds the current project in the working directory.
-    /// Also builds and runs the associated test project if one exists.
+    ///     Builds the current project in the working directory.
+    ///     Also builds and runs the associated test project if one exists.
     /// </summary>
-    public static void BuildCurrent(
-        string projectPath,
-        Dictionary<string, string> testAssociations) {
+    public static void BuildCurrent(string projectPath, Dictionary<string, string> testAssociations) {
         RUN($"dotnet restore \"{projectPath}\" --locked-mode");
 
-        if (testAssociations.TryGetValue(projectPath, out var testProjectPath)) {
+        if (testAssociations.TryGetValue(projectPath, out string? testProjectPath)) {
             RUN($"dotnet restore \"{testProjectPath}\" --locked-mode");
             RUN($"dotnet build \"{testProjectPath}\" -c Release {DeterministicFlags}");
             RUN($"dotnet test \"{testProjectPath}\" -c Release --no-build");
@@ -30,18 +25,17 @@ public static class BuildPipeline {
     }
 
     /// <summary>
-    /// Resolves the base version DLL for comparison.
-    /// Strategy 1: Download from NuGet sources.
-    /// Strategy 2: Build from shadow copy (old source).
-    /// Returns the path to the base DLL, or null if unavailable.
+    ///     Resolves the base version DLL for comparison.
+    ///     Strategy 1: Download from NuGet sources.
+    ///     Strategy 2: Build from shadow copy (old source).
+    ///     Returns the path to the base DLL, or null if unavailable.
     /// </summary>
-    public static string? ResolveBaseDll(
-        string projectPath, string projectName,
-        Version baseVersion, List<string> sources,
-        string? shadowCopyPath) {
+    public static string? ResolveBaseDll(string projectPath, string projectName, Version baseVersion, List<string> sources, string? shadowCopyPath) {
         // Strategy 1: Try downloading from NuGet
-        var nugetDll = TryDownloadFromNuGet(projectName, baseVersion, sources);
-        if (nugetDll != null) return nugetDll;
+        string? nugetDll = TryDownloadFromNuGet(projectName, baseVersion, sources);
+        if (nugetDll != null) {
+            return nugetDll;
+        }
 
         // Strategy 2: Build from shadow copy
         if (shadowCopyPath != null) {
@@ -52,30 +46,29 @@ public static class BuildPipeline {
     }
 
     /// <summary>
-    /// Packs the current project at the target version. Reuses the existing build.
-    /// Returns the path to the generated .nupkg, or null on failure.
+    ///     Packs the current project at the target version. Reuses the existing build.
+    ///     Returns the path to the generated .nupkg, or null on failure.
     /// </summary>
     public static string? Pack(string projectPath, Version targetVersion) {
-        var versionStr = targetVersion.ToString(3);
+        string versionStr = targetVersion.ToString(3);
         RUN($"dotnet pack \"{projectPath}\" -c Release --no-build -p:PackageVersion={versionStr}");
 
-        var projectDir = Path.GetDirectoryName(projectPath)!;
-        var nupkgs = Directory.GetFiles(projectDir, "*.nupkg", SearchOption.AllDirectories);
+        string projectDir = Path.GetDirectoryName(projectPath)!;
+        string[] nupkgs = Directory.GetFiles(projectDir, "*.nupkg", SearchOption.AllDirectories);
         return nupkgs.FirstOrDefault();
     }
 
     /// <summary>
-    /// Attempts to download a package from configured NuGet sources and extract its DLL.
+    ///     Attempts to download a package from configured NuGet sources and extract its DLL.
     /// </summary>
-    private static string? TryDownloadFromNuGet(
-        string packageId, Version version, List<string> sources) {
-        var versionStr = version.ToString(3);
-        var tempPath = Path.Combine(Path.GetTempPath(), $"flow-nuget-{Guid.NewGuid():N}");
+    private static string? TryDownloadFromNuGet(string packageId, Version version, List<string> sources) {
+        string versionStr = version.ToString(3);
+        string tempPath = Path.Combine(Path.GetTempPath(), $"flow-nuget-{Guid.NewGuid():N}");
 
         try {
             Directory.CreateDirectory(tempPath);
 
-            foreach (var source in sources) {
+            foreach (string source in sources) {
                 try {
                     CMD($"dotnet nuget download {packageId} --version {versionStr} --source {source} --output-directory \"{tempPath}\"");
                 } catch {
@@ -88,8 +81,10 @@ public static class BuildPipeline {
                 }
 
                 // Find the DLL inside the downloaded package
-                var dlls = Directory.GetFiles(tempPath, $"{packageId}.dll", SearchOption.AllDirectories);
-                if (dlls.Length > 0) return dlls[0];
+                string[] dlls = Directory.GetFiles(tempPath, $"{packageId}.dll", SearchOption.AllDirectories);
+                if (dlls.Length > 0) {
+                    return dlls[0];
+                }
             }
 
             return null;
@@ -102,15 +97,16 @@ public static class BuildPipeline {
     }
 
     /// <summary>
-    /// Builds the old version of a project inside the shadow copy.
+    ///     Builds the old version of a project inside the shadow copy.
     /// </summary>
-    private static string? BuildInShadowCopy(
-        string projectPath, string projectName, string shadowCopyPath) {
-        var workingDir = PWD;
-        var relativePath = Path.GetRelativePath(workingDir, projectPath);
-        var shadowProjectPath = Path.Combine(shadowCopyPath, relativePath);
+    private static string? BuildInShadowCopy(string projectPath, string projectName, string shadowCopyPath) {
+        string workingDir = PWD;
+        string relativePath = Path.GetRelativePath(workingDir, projectPath);
+        string shadowProjectPath = Path.Combine(shadowCopyPath, relativePath);
 
-        if (!File.Exists(shadowProjectPath)) return null;
+        if (!File.Exists(shadowProjectPath)) {
+            return null;
+        }
 
         try {
             RUN($"dotnet restore \"{shadowProjectPath}\"");
@@ -119,7 +115,6 @@ public static class BuildPipeline {
             return null;
         }
 
-        return SyntacticVersioning.FindAssembly(
-            Path.GetDirectoryName(shadowProjectPath)!, projectName);
+        return SyntacticVersioning.FindAssembly(Path.GetDirectoryName(shadowProjectPath)!, projectName);
     }
 }

@@ -1,5 +1,4 @@
 using CalqFramework.Flow.Git;
-using static CalqFramework.Cmd.Terminal;
 
 namespace CalqFramework.Flow.Tests.Git;
 
@@ -22,9 +21,9 @@ public class GitOperationsTest : IDisposable {
 
     [Fact]
     public void GetRepositoryRoot_ReturnsRepoRoot() {
-        var prev = PWD;
+        string prev = PWD;
         CD(_workDir);
-        var root = GitOperations.GetRepositoryRoot(_workDir);
+        string root = GitOperations.GetRepositoryRoot(_workDir);
         CD(prev);
 
         Assert.NotEmpty(root);
@@ -33,9 +32,9 @@ public class GitOperationsTest : IDisposable {
 
     [Fact]
     public void GetHeadCommitHash_Returns40CharHash() {
-        var prev = PWD;
+        string prev = PWD;
         CD(_workDir);
-        var hash = GitOperations.GetHeadCommitHash();
+        string hash = GitOperations.GetHeadCommitHash();
         CD(prev);
 
         Assert.Equal(40, hash.Length);

@@ -1,20 +1,17 @@
-using static CalqFramework.Cmd.Terminal;
-using CalqFramework.Cmd.TerminalComponents;
-
 namespace CalqFramework.Flow.Tests;
 
 /// <summary>
-/// Shared utilities for setting up local git repos and .NET projects for testing.
-/// Uses CalqFramework.Cmd for all git/dotnet operations.
+///     Shared utilities for setting up local git repos and .NET projects for testing.
+///     Uses CalqFramework.Cmd for all git/dotnet operations.
 /// </summary>
 public static class TestHelper {
     /// <summary>
-    /// Creates a bare git repository to act as a local "remote".
+    ///     Creates a bare git repository to act as a local "remote".
     /// </summary>
     public static string CreateBareRepo() {
-        var path = Path.Combine(Path.GetTempPath(), $"flow-test-bare-{Guid.NewGuid():N}");
+        string path = Path.Combine(Path.GetTempPath(), $"flow-test-bare-{Guid.NewGuid():N}");
         Directory.CreateDirectory(path);
-        var prev = PWD;
+        string prev = PWD;
         CD(path);
         CMD("git init --bare");
         CD(prev);
@@ -22,12 +19,12 @@ public static class TestHelper {
     }
 
     /// <summary>
-    /// Creates a working git repo linked to the given bare repo as "origin".
+    ///     Creates a working git repo linked to the given bare repo as "origin".
     /// </summary>
     public static string CreateWorkingRepo(string bareRepoPath) {
-        var path = Path.Combine(Path.GetTempPath(), $"flow-test-work-{Guid.NewGuid():N}");
+        string path = Path.Combine(Path.GetTempPath(), $"flow-test-work-{Guid.NewGuid():N}");
         Directory.CreateDirectory(path);
-        var prev = PWD;
+        string prev = PWD;
         CD(path);
         CMD("git init -b main");
         CMD("git config user.email \"test@test.com\"");
@@ -38,13 +35,15 @@ public static class TestHelper {
     }
 
     /// <summary>
-    /// Creates a minimal .csproj file with a Version element.
+    ///     Creates a minimal .csproj file with a Version element.
     /// </summary>
     public static string CreateProject(string parentDir, string projectName, string version = "1.0.0") {
-        var projectDir = Path.Combine(parentDir, projectName);
+        string projectDir = Path.Combine(parentDir, projectName);
         Directory.CreateDirectory(projectDir);
-        var csprojPath = Path.Combine(projectDir, $"{projectName}.csproj");
-        File.WriteAllText(csprojPath, $@"<Project Sdk=""Microsoft.NET.Sdk"">
+        string csprojPath = Path.Combine(projectDir, $"{projectName}.csproj");
+        File.WriteAllText(
+            csprojPath,
+            $@"<Project Sdk=""Microsoft.NET.Sdk"">
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <Version>{version}</Version>
@@ -54,7 +53,7 @@ public static class TestHelper {
     }
 
     /// <summary>
-    /// Creates a minimal .cs source file in the given directory.
+    ///     Creates a minimal .cs source file in the given directory.
     /// </summary>
     public static string CreateSourceFile(string projectDir, string className, string content = "") {
         if (string.IsNullOrEmpty(content)) {
@@ -63,16 +62,17 @@ public class {className} {{
     public string Hello() => ""world"";
 }}";
         }
-        var filePath = Path.Combine(projectDir, $"{className}.cs");
+
+        string filePath = Path.Combine(projectDir, $"{className}.cs");
         File.WriteAllText(filePath, content);
         return filePath;
     }
 
     /// <summary>
-    /// Commits all files in the working repo and pushes to origin.
+    ///     Commits all files in the working repo and pushes to origin.
     /// </summary>
     public static void CommitAndPush(string workingDir, string message = "commit", string branch = "main") {
-        var prev = PWD;
+        string prev = PWD;
         CD(workingDir);
         CMD("git add -A");
         CMD($"git commit -m \"{message}\" --allow-empty");
@@ -82,14 +82,15 @@ public class {className} {{
             // First push — set upstream
             CMD($"git push -u origin {branch}");
         }
+
         CD(prev);
     }
 
     /// <summary>
-    /// Creates a version tag and pushes it to origin.
+    ///     Creates a version tag and pushes it to origin.
     /// </summary>
     public static void TagAndPush(string workingDir, string tag, string remote = "origin") {
-        var prev = PWD;
+        string prev = PWD;
         CD(workingDir);
         CMD($"git tag {tag}");
         CMD($"git push {remote} {tag}");
@@ -97,7 +98,7 @@ public class {className} {{
     }
 
     /// <summary>
-    /// Suppresses RUN logging for cleaner test output.
+    ///     Suppresses RUN logging for cleaner test output.
     /// </summary>
     public static void SuppressLogging() {
         LocalTerminal.TerminalLogger = new NullTerminalLogger();
@@ -105,15 +106,16 @@ public class {className} {{
     }
 
     /// <summary>
-    /// Recursively deletes a directory, ignoring errors.
+    ///     Recursively deletes a directory, ignoring errors.
     /// </summary>
     public static void CleanupDir(string path) {
         try {
             if (Directory.Exists(path)) {
                 // Reset readonly attributes on .git files
-                foreach (var file in Directory.GetFiles(path, "*", SearchOption.AllDirectories)) {
+                foreach (string file in Directory.GetFiles(path, "*", SearchOption.AllDirectories)) {
                     File.SetAttributes(file, FileAttributes.Normal);
                 }
+
                 Directory.Delete(path, true);
             }
         } catch {

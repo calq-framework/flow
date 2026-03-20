@@ -1,5 +1,4 @@
 using CalqFramework.Flow.Git;
-using static CalqFramework.Cmd.Terminal;
 
 namespace CalqFramework.Flow.Tests.Git;
 
@@ -22,12 +21,12 @@ public class TaggingStrategyTest : IDisposable {
 
     [Fact]
     public void CreateTag_PushesTagToRemote() {
-        var prev = PWD;
+        string prev = PWD;
         CD(_workDir);
         TaggingStrategy.CreateTag("v", new Version(1, 2, 3), "origin");
 
         // Verify tag exists on remote
-        var tags = CMD("git ls-remote --tags origin");
+        string tags = CMD("git ls-remote --tags origin");
         CD(prev);
 
         Assert.Contains("v1.2.3", tags);
@@ -35,12 +34,12 @@ public class TaggingStrategyTest : IDisposable {
 
     [Fact]
     public void UpdateRollingBranch_ForceUpdatesRemoteBranch() {
-        var prev = PWD;
+        string prev = PWD;
         CD(_workDir);
         TaggingStrategy.UpdateRollingBranch("latest", "origin");
 
         // Verify the branch exists on remote
-        var refs = CMD("git ls-remote --heads origin");
+        string refs = CMD("git ls-remote --heads origin");
         CD(prev);
 
         Assert.Contains("refs/heads/latest", refs);

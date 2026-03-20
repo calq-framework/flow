@@ -1,5 +1,4 @@
 using CalqFramework.Flow.Git;
-using static CalqFramework.Cmd.Terminal;
 
 namespace CalqFramework.Flow.Tests.Git;
 
@@ -15,7 +14,10 @@ public class ShadowCopyTest : IDisposable {
     }
 
     public void Dispose() {
-        if (_shadowPath != null) ShadowCopy.Cleanup(_shadowPath);
+        if (_shadowPath != null) {
+            ShadowCopy.Cleanup(_shadowPath);
+        }
+
         TestHelper.CleanupDir(_bareRepo);
         TestHelper.CleanupDir(_workDir);
     }
@@ -33,9 +35,10 @@ public class ShadowCopyTest : IDisposable {
 
         TestHelper.CommitAndPush(_workDir, "init");
 
-        var prev = PWD;
+        string prev = PWD;
         CD(_workDir);
-        var repoRoot = CMD("git rev-parse --show-toplevel").Trim();
+        string repoRoot = CMD("git rev-parse --show-toplevel")
+            .Trim();
         _shadowPath = ShadowCopy.Create(_workDir, repoRoot, "origin", "v");
         CD(prev);
 
@@ -50,7 +53,7 @@ public class ShadowCopyTest : IDisposable {
     [Fact]
     public void Create_ChecksOutBaseVersionWhenTagExists() {
         TestHelper.CreateProject(_workDir, "Lib");
-        var sourceFile = Path.Combine(_workDir, "Lib", "Foo.cs");
+        string sourceFile = Path.Combine(_workDir, "Lib", "Foo.cs");
         File.WriteAllText(sourceFile, "// v1");
         TestHelper.CommitAndPush(_workDir, "v1");
         TestHelper.TagAndPush(_workDir, "v1.0.0");
@@ -59,22 +62,23 @@ public class ShadowCopyTest : IDisposable {
         File.WriteAllText(sourceFile, "// v2 - changed");
         TestHelper.CommitAndPush(_workDir, "v2");
 
-        var prev = PWD;
+        string prev = PWD;
         CD(_workDir);
-        var repoRoot = CMD("git rev-parse --show-toplevel").Trim();
+        string repoRoot = CMD("git rev-parse --show-toplevel")
+            .Trim();
         _shadowPath = ShadowCopy.Create(_workDir, repoRoot, "origin", "v");
         CD(prev);
 
         // Shadow copy should have the v1 content (base version)
-        var shadowFile = Path.Combine(_shadowPath, "Lib", "Foo.cs");
+        string shadowFile = Path.Combine(_shadowPath, "Lib", "Foo.cs");
         Assert.True(File.Exists(shadowFile));
-        var content = File.ReadAllText(shadowFile);
+        string content = File.ReadAllText(shadowFile);
         Assert.Equal("// v1", content);
     }
 
     [Fact]
     public void Cleanup_DeletesShadowDirectory() {
-        var tempPath = Path.Combine(Path.GetTempPath(), $"flow-test-cleanup-{Guid.NewGuid():N}");
+        string tempPath = Path.Combine(Path.GetTempPath(), $"flow-test-cleanup-{Guid.NewGuid():N}");
         Directory.CreateDirectory(tempPath);
         File.WriteAllText(Path.Combine(tempPath, "test.txt"), "data");
 

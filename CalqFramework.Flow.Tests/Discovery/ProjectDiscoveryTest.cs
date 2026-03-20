@@ -10,15 +10,13 @@ public class ProjectDiscoveryTest : IDisposable {
         Directory.CreateDirectory(_tempDir);
     }
 
-    public void Dispose() {
-        TestHelper.CleanupDir(_tempDir);
-    }
+    public void Dispose() => TestHelper.CleanupDir(_tempDir);
 
     [Fact]
     public void DiscoverProjects_FindsCsproj() {
         TestHelper.CreateProject(_tempDir, "MyLib");
 
-        var projects = ProjectDiscovery.DiscoverProjects(_tempDir);
+        List<string> projects = ProjectDiscovery.DiscoverProjects(_tempDir);
 
         Assert.Single(projects);
         Assert.Contains("MyLib.csproj", projects[0]);
@@ -30,7 +28,7 @@ public class ProjectDiscoveryTest : IDisposable {
         TestHelper.CreateProject(_tempDir, "MyLibTests");
         TestHelper.CreateProject(_tempDir, "MyLibTest");
 
-        var projects = ProjectDiscovery.DiscoverProjects(_tempDir);
+        List<string> projects = ProjectDiscovery.DiscoverProjects(_tempDir);
 
         Assert.Single(projects);
         Assert.Contains("MyLib.csproj", projects[0]);
@@ -42,7 +40,7 @@ public class ProjectDiscoveryTest : IDisposable {
         TestHelper.CreateProject(_tempDir, "MyLibExample");
         TestHelper.CreateProject(_tempDir, "MyLibSample");
 
-        var projects = ProjectDiscovery.DiscoverProjects(_tempDir);
+        List<string> projects = ProjectDiscovery.DiscoverProjects(_tempDir);
 
         Assert.Single(projects);
         Assert.Contains("MyLib.csproj", projects[0]);
@@ -53,13 +51,12 @@ public class ProjectDiscoveryTest : IDisposable {
         // Parent project
         TestHelper.CreateProject(_tempDir, "Parent");
         // Nested project inside Parent's directory
-        var parentDir = Path.Combine(_tempDir, "Parent");
-        var nestedDir = Path.Combine(parentDir, "Nested");
+        string parentDir = Path.Combine(_tempDir, "Parent");
+        string nestedDir = Path.Combine(parentDir, "Nested");
         Directory.CreateDirectory(nestedDir);
-        File.WriteAllText(Path.Combine(nestedDir, "Nested.csproj"),
-            "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net9.0</TargetFramework></PropertyGroup></Project>");
+        File.WriteAllText(Path.Combine(nestedDir, "Nested.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net9.0</TargetFramework></PropertyGroup></Project>");
 
-        var projects = ProjectDiscovery.DiscoverProjects(_tempDir);
+        List<string> projects = ProjectDiscovery.DiscoverProjects(_tempDir);
 
         Assert.Single(projects);
         Assert.Contains("Parent.csproj", projects[0]);
@@ -70,7 +67,7 @@ public class ProjectDiscoveryTest : IDisposable {
         TestHelper.CreateProject(_tempDir, "LibA");
         TestHelper.CreateProject(_tempDir, "LibB");
 
-        var projects = ProjectDiscovery.DiscoverProjects(_tempDir);
+        List<string> projects = ProjectDiscovery.DiscoverProjects(_tempDir);
 
         Assert.Equal(2, projects.Count);
     }
