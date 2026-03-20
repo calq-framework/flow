@@ -33,9 +33,8 @@ public class FlowManager {
 
     /// <summary>
     /// Publishes changed projects to configured NuGet sources.
-    /// Resolves target versions, computes syntactic diffs, attempts mirroring,
-    /// falls back to source build, and synchronizes Git tags.
-    /// Always returns the syntactic diff metadata.
+    /// Pipeline: discover → detect changes → build current → resolve base DLLs →
+    /// compare → compute version → pack → push → tag.
     /// </summary>
     /// <param name="dryRun">Log actions without modifying the filesystem, Git state, or NuGet registries.</param>
     /// <param name="ignoreAccessModifiers">Include internal member changes (for InternalsVisibleTo).</param>
@@ -70,36 +69,81 @@ public class FlowManager {
         // §7: Changed Project Detection
         var changedProjects = ChangeDetection.DetectChangedProjects(projects, Remote, TagPrefix);
 
-        // §8-9: Syntactic Versioning + Version Bumping
-        var diffResults = new List<ProjectDiffResult>();
-        Version targetVersion = latestTag ?? new Version(0, 0, 0);
-
-        if (changedProjects.Count > 0) {
-            var shadowCopyPath = ShadowCopy.Create(workingDirectory, repoRoot, Remote, TagPrefix);
-            try {
-                foreach (var project in changedProjects) {
-                    var diff = SyntacticVersioning.Compare(
-                        project, shadowCopyPath, workingDirectory, ignoreAccessModifiers);
-                    diffResults.Add(diff);
-                }
-            } finally {
-                ShadowCopy.Cleanup(shadowCopyPath);
-            }
-
-            targetVersion = VersionBumper.ComputeTargetVersion(
-                latestTag, projectVersions, diffResults);
+        if (changedProjects.Count == 0) {
+            return new PublishResult {
+                TargetVersion = (latestTag ?? new Version(0, 0, 0)).ToString(3),
+                PreviousVersion = latestTag?.ToString(3) ?? "",
+                DryRun = dryRun
+            };
         }
 
-        // §10: Publish Pipeline
+        // ── Phase 1: Build current projects ──
+        // Each changed project is built once. Test projects are built and run here too.
+        foreach (var project in changedProjects) {
+            BuildPipeline.BuildCurrent(project, testAssociations);
+        }
+
+        // ── Phase 2: Resolve base DLLs and compare ──
+        // Try NuGet download first, fall back to building in shadow copy.
+        string? shadowCopyPath = null;
+        var diffResults = new List<ProjectDiffResult>();
+
+        try {
+            foreach (var project in changedProjects) {
+                var projectName = Path.GetFileNameWithoutExtension(project);
+                var projectDir = Path.GetDirectoryName(project)!;
+
+                var currentDll = SyntacticVersioning.FindAssembly(projectDir, projectName);
+
+                // Resolve base DLL: NuGet first, then shadow copy
+                string? baseDll = null;
+                if (latestTag != null) {
+                    baseDll = BuildPipeline.ResolveBaseDll(
+                        project, projectName, latestTag, Sources, shadowCopyPath: null);
+
+                    // NuGet failed — create shadow copy (once) and build there
+                    if (baseDll == null) {
+                        shadowCopyPath ??= ShadowCopy.Create(
+                            workingDirectory, repoRoot, Remote, TagPrefix);
+                        baseDll = BuildPipeline.ResolveBaseDll(
+                            project, projectName, latestTag, Sources, shadowCopyPath);
+                    }
+                }
+
+                var diff = SyntacticVersioning.Compare(
+                    projectName, currentDll, baseDll, ignoreAccessModifiers);
+                diffResults.Add(diff);
+            }
+        } finally {
+            if (shadowCopyPath != null) {
+                ShadowCopy.Cleanup(shadowCopyPath);
+            }
+        }
+
+        // §9: Version Bumping
+        var targetVersion = VersionBumper.ComputeTargetVersion(
+            latestTag, projectVersions, diffResults);
+
+        // ── Phase 3: Pack and push ──
+        var nupkgPaths = new List<string>();
+        foreach (var project in changedProjects) {
+            var nupkg = BuildPipeline.Pack(project, targetVersion);
+            if (nupkg != null) nupkgPaths.Add(nupkg);
+        }
+
         var publishedPackages = new List<string>();
-        if (changedProjects.Count > 0) {
-            publishedPackages = PublishPipeline.Execute(
-                projects, changedProjects, testAssociations,
-                targetVersion, Sources, sign, dryRun, Remote, TagPrefix);
+        if (dryRun) {
+            foreach (var project in changedProjects) {
+                var name = Path.GetFileNameWithoutExtension(project);
+                Console.Error.WriteLine($"[dry-run] Would publish {name} {targetVersion.ToString(3)}");
+                publishedPackages.Add(name);
+            }
+        } else {
+            publishedPackages = PublishPipeline.Execute(nupkgPaths, Sources, sign, dryRun: false);
         }
 
         // §12: Tagging & Branching
-        if (!dryRun && changedProjects.Count > 0) {
+        if (!dryRun) {
             TaggingStrategy.CreateTag(TagPrefix, targetVersion, Remote);
             if (!string.IsNullOrEmpty(rollingBranch)) {
                 TaggingStrategy.UpdateRollingBranch(rollingBranch, Remote);

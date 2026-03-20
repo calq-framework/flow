@@ -19,46 +19,23 @@ public static class SyntacticVersioning {
     };
 
     /// <summary>
-    /// Compares the current assembly against the base version from the shadow copy.
+    /// Compares the current assembly (already built) against the base version DLL.
+    /// The caller is responsible for providing the paths to both DLLs.
     /// </summary>
     public static ProjectDiffResult Compare(
-        string projectPath, string shadowCopyPath, string workingDirectory,
+        string projectName, string? currentDll, string? baseDll,
         bool ignoreAccessModifiers) {
-        var projectName = Path.GetFileNameWithoutExtension(projectPath);
         var result = new ProjectDiffResult { ProjectName = projectName };
 
-        var currentDll = FindAssembly(workingDirectory, projectName);
-        var baseDll = FindAssembly(shadowCopyPath, projectName);
-
         if (currentDll == null || baseDll == null) {
-            // Cannot compare — treat as byte-level fallback
             result.ByteLevelFallback = true;
-            if (currentDll != null && baseDll != null) {
-                if (!FilesAreEqual(currentDll, baseDll)) {
-                    result.Changes.Add(new MemberChange {
-                        MemberIdentity = projectName,
-                        Kind = ChangeKind.ILChanged
-                    });
-                }
-            } else if (currentDll != null) {
+            if (currentDll != null) {
+                // New project — no base to compare against
                 result.Changes.Add(new MemberChange {
                     MemberIdentity = projectName,
                     Kind = ChangeKind.Added
                 });
             }
-            return result;
-        }
-
-        // Build the base assembly first in the shadow copy
-        BuildAssembly(shadowCopyPath, projectPath);
-
-        baseDll = FindAssembly(shadowCopyPath, projectName);
-        if (baseDll == null) {
-            result.ByteLevelFallback = true;
-            result.Changes.Add(new MemberChange {
-                MemberIdentity = projectName,
-                Kind = ChangeKind.Added
-            });
             return result;
         }
 
@@ -167,7 +144,10 @@ public static class SyntacticVersioning {
             .ToList();
     }
 
-    private static string? FindAssembly(string baseDir, string projectName) {
+    /// <summary>
+    /// Searches for a compiled assembly DLL in standard output directories.
+    /// </summary>
+    public static string? FindAssembly(string baseDir, string projectName) {
         var searchPaths = new[] {
             Path.Combine(baseDir, "bin", "Release"),
             Path.Combine(baseDir, "bin", "Debug"),
@@ -181,14 +161,6 @@ public static class SyntacticVersioning {
         }
 
         return null;
-    }
-
-    private static void BuildAssembly(string shadowCopyPath, string projectPath) {
-        var relativePath = Path.GetRelativePath(Environment.CurrentDirectory, projectPath);
-        var shadowProjectPath = Path.Combine(shadowCopyPath, relativePath);
-        if (File.Exists(shadowProjectPath)) {
-            CMD($"dotnet build \"{shadowProjectPath}\" -c Release --no-restore -p:Deterministic=true -p:ContinuousIntegrationBuild=true");
-        }
     }
 
     private static bool FilesAreEqual(string path1, string path2) {
