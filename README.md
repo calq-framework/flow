@@ -36,18 +36,37 @@ discover → detect changes → build → resolve base DLLs → IL compare → v
 
 ### As a GitHub Action
 
+Publish workflows should use concurrency to prevent race conditions on version tags:
+
 ```yaml
-- uses: actions/checkout@v4
-  with:
-    fetch-depth: 0
+name: Publish
 
-- uses: actions/setup-dotnet@v4
-  with:
-    dotnet-version: '9.0.x'
+on:
+  workflow_dispatch:
 
-- uses: calq-framework/flow@latest
-  with:
-    subcommand: 'publish'
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Calq Flow (publish)
+        uses: calq-framework/flow@latest
+        with:
+          subcommand: 'publish'
+        env: ${{ secrets }}
 ```
 
 Pin to a specific version:
