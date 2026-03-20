@@ -56,6 +56,18 @@ runs:
         echo "DOTNET_VERSION=$DOTNET_VERSION" >> $GITHUB_ENV
         echo "[System] Resolved $TOOL_NAME target version: $VERSION"
 
+    - name: Install Tool (Self-Test)
+      if: github.repository == 'calq-framework/flow'
+      shell: bash
+      run: |
+        echo "[System] Source repository detected. Building local tool context..."
+        dotnet pack -c Release -o ./dist --nologo
+        PACKAGE=$(ls ./dist/*.nupkg | head -n 1)
+        V=$(echo $PACKAGE | grep -oP '\d+\.\d+\.\d+')
+        dotnet tool uninstall --global $TOOL_PACKAGE || true
+        dotnet tool install --global --add-source ./dist --version "$V" $TOOL_PACKAGE
+        echo "[Info] Local version $V built and installed successfully."
+
     - name: Configure NuGet Environment
       shell: bash
       run: |
@@ -88,18 +100,6 @@ runs:
       run: |
         echo "[Action] Synchronizing $TOOL_PACKAGE @ ${{ env.DOTNET_VERSION }}..."
         dotnet tool update --global $TOOL_PACKAGE --version "${{ env.DOTNET_VERSION }}"
-
-    - name: Install Tool (Self-Test)
-      if: github.repository == 'calq-framework/flow'
-      shell: bash
-      run: |
-        echo "[System] Source repository detected. Building local tool context..."
-        dotnet pack -c Release -o ./dist --nologo
-        PACKAGE=$(ls ./dist/*.nupkg | head -n 1)
-        V=$(echo $PACKAGE | grep -oP '\d+\.\d+\.\d+')
-        dotnet tool uninstall --global $TOOL_PACKAGE || true
-        dotnet tool install --global --add-source ./dist --version "$V" $TOOL_PACKAGE
-        echo "[Info] Local version $V built and installed successfully."
 
     - name: Restore Project Packages Cache
       uses: actions/cache@v4
