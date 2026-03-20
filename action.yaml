@@ -23,8 +23,8 @@ runs:
         # Centralized configuration (easy to adapt for other tools later)
         TOOL_NAME="Calq Flow"
         TOOL_REPO_URL="https://github.com/calq-framework/flow.git"
-        TOOL_PACKAGE="CalqFramework.Flow"
-        TOOL_CMD="flow"
+        TOOL_PACKAGE="CalqFramework.Flow.Cli"
+        TOOL_CMD="calq-flow"
         
         # Export for subsequent bash steps
         echo "TOOL_PACKAGE=$TOOL_PACKAGE" >> $GITHUB_ENV
