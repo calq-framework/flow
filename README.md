@@ -6,7 +6,7 @@
 
 Calq Flow is a deterministic versioning and CI/CD orchestration platform for .NET monorepos. It fully automates the release lifecycle—from project discovery and IL-level binary diffing to semantic versioning and NuGet publishing—all in a single command. It eliminates fragile DevOps scripts by treating your release pipeline as a natively compiled C# application, executing seamlessly as a CLI tool or a highly optimized GitHub Action.
 
-## The Universal .NET Release Engine
+## The Universal .NET Release Platform
 Calq Flow transforms modular software delivery by collapsing the wall between application code and DevOps infrastructure. By shifting the source of truth from subjective commit messages to objective IL binary comparison, it delivers a zero-configuration, fully automated CI/CD pipeline that executes identically on your local workstation and in the cloud.
 
 ---
