@@ -56,7 +56,7 @@ runs:
         echo "DOTNET_VERSION=$DOTNET_VERSION" >> $GITHUB_ENV
         echo "[System] Resolved $TOOL_NAME target version: $VERSION"
 
-    - name: Install Tool (Self-Test)
+    - name: Install Tool (Self-Install)
       if: github.repository == 'calq-framework/flow'
       shell: bash
       run: |
@@ -86,7 +86,7 @@ runs:
         rm -rf "$TEMP"
 
     - name: Cache Tool Binary
-      # Self-test mode should not use binary cache
+      # Self-install mode should not use binary cache
       if: inputs.cache == 'true' && github.repository != 'calq-framework/flow'
       id: cache-tool
       uses: actions/cache@v4

@@ -3,40 +3,55 @@
 [![REUSE status](https://api.reuse.software/badge/github.com/calq-framework/flow)](https://api.reuse.software/info/github.com/calq-framework/flow)
 
 # Calq Flow
-Calq Flow is a deterministic versioning and publishing tool for .NET monorepos. It automatically discovers projects, compares assemblies at the IL level, computes semantic version bumps, and publishes NuGet packages — all in a single command.  
-Calq Flow runs as a CLI tool, a GitHub Action, or both.
+
+Calq Flow is a deterministic versioning and CI/CD orchestration platform for .NET monorepos. It fully automates the release lifecycle—from project discovery and IL-level binary diffing to semantic versioning and NuGet publishing—all in a single command. It eliminates fragile DevOps scripts by treating your release pipeline as a natively compiled C# application, executing seamlessly as a CLI tool or a highly optimized GitHub Action.
+
+## The Universal .NET Release Engine
+Calq Flow transforms modular software delivery by collapsing the wall between application code and DevOps infrastructure. By shifting the source of truth from subjective commit messages to objective IL binary comparison, it delivers a zero-configuration, fully automated CI/CD pipeline that executes identically on your local workstation and in the cloud.
+
+---
+
+## Calq Flow vs. GitVersion
+
+Traditional versioning relies on human-in-the-loop subjective data (commit messages, branch names). Calq Flow acts as an absolute engine of truth by analyzing the compiled binaries.
+
+| Feature | Calq Flow | GitVersion |
+| :--- | :--- | :--- |
+| **Version Source** | Objective IL/metadata diff | Subjective Git history + branching strategy |
+| **Breaking Change Detection** | Automatic (IL comparison) | Manual (commit message `+semver: breaking`) |
+| **Monorepo Support** | Native project graph discovery | Not built-in |
+| **Test Integration** | Auto-discovers and enforces test runs | Not included |
+| **Build / Pack / Push** | Complete CI/CD pipeline orchestration | Not included (versioning only) |
+| **Configuration** | Zero-config / CLI flags | `GitVersion.yml` |
+| **GitHub Action Architecture** | Native Composite (Millisecond execution, zero Docker overhead) | Docker-based (Container initialization latency) |
+
+---
 
 ## How It Works
+
+Calq Flow orchestrates ten distinct stages of the release process that traditionally require a patchwork of disconnected YAML scripts:
 
 ```
 discover → detect changes → build → resolve base DLLs → IL compare → version bump → pack → push → tag
 ```
 
-1. Recursively discovers `*.*proj` files, excluding tests, examples, and nested projects.
-2. Detects which projects changed since the last version tag using `git diff`.
-3. Builds changed projects (and runs associated tests). Unchanged projects are also built for lockstep packing.
-4. Resolves the previous version's DLL via NuGet download or shadow-copy build.
-5. Compares current vs. base assemblies at the IL/metadata level using `MetadataLoadContext`.
-6. Computes the target version: breaking → minor bump, non-breaking → patch bump (pre-1.0 convention). Major bumps are manual only.
-7. Packs all projects at the computed version, pushes to configured NuGet sources, and creates a Git version tag.
+1. **Discovery:** Recursively maps the monorepo, locating `*.*proj` files while excluding tests, examples, and nested projects.
+2. **Impact Analysis:** Detects exactly which modules changed since the last version tag using `git diff`.
+3. **Compilation & Testing:** Builds changed projects and automatically enforces associated test suites. Unchanged projects are also built to ensure lockstep packing.
+4. **Base Resolution:** Acquires the previous version's DLL via NuGet download, or seamlessly falls back to a temporary "Shadow Copy" build of the previous Git tree.
+5. **Syntactic Comparison:** Computes the objective truth of your codebase by comparing current vs. base assemblies at the IL/metadata level utilizing `MetadataLoadContext`.
+6. **Versioning:** Algorithmically determines the semantic version: breaking → minor bump, non-breaking → patch bump (pre-1.0 convention). 
+7. **Distribution & Persistence:** Packs all projects at the computed version, pushes to configured NuGet registries, and provisions a Git version tag.
 
-## Calq Flow vs. GitVersion
-
-| Feature | Calq Flow | GitVersion |
-| :--- | :--- | :--- |
-| **Version Source** | IL/metadata diff | Git history + branching strategy |
-| **Breaking Change Detection** | Automatic (IL comparison) | Manual (commit message `+semver: breaking`) |
-| **Monorepo Support** | Built-in project discovery | Not built-in |
-| **Test Integration** | Auto-discovers and runs test projects | Not included |
-| **Build / Pack / Push** | Built-in pipeline | Not included (versioning only) |
-| **Configuration** | CLI flags | `GitVersion.yml` |
-| **GitHub Action** | Composite (no Docker) | Docker-based |
+---
 
 ## Usage
 
 ### As a GitHub Action
 
-Publish workflows should use concurrency to prevent race conditions on version tags:
+Because Calq Flow is architected as a C# Composite Action, it eliminates the substantial "Docker overhead" (container image pull and initialization latency) associated with conventional DevOps actions. It leverages the GitHub Runner's native .NET runtime to execute in milliseconds.
+
+Publish workflows should utilize concurrency to prevent race conditions on version tags:
 
 ```yaml
 name: Publish
@@ -102,7 +117,9 @@ Publish to nuget.org with an API key:
 | `nuget-config-repo` | No | `.nuget` | Repository to pull `NuGet.Config` from (under the same GitHub owner) |
 | `cache` | No | `true` | Enable caching for the tool binary and NuGet packages |
 
-### As a CLI Tool
+### As a CLI Tool (The "Infinite Loop" Workflow)
+
+Calq Flow enables you to debug your CI pipeline locally. Because the orchestration logic is not confined to YAML, you can execute the exact same deterministic pipeline on your local workstation.
 
 Install globally:
 
@@ -110,7 +127,7 @@ Install globally:
 dotnet tool install --global CalqFramework.Flow.Cli
 ```
 
-Run:
+Run locally:
 
 ```bash
 calq-flow publish
@@ -138,7 +155,7 @@ calq-flow publish --sources nuget.org --api-key <key>
 
 ### JSON Output
 
-`publish` returns a `PublishResult` serialized to JSON on stdout. All build/test output goes to stderr, keeping stdout clean for machine consumption.
+`publish` returns a `PublishResult` serialized to JSON on stdout. All build/test output is routed to stderr, maintaining a pristine stdout stream for machine consumption and integrations.
 
 ```json
 {
@@ -166,7 +183,11 @@ calq-flow publish --sources nuget.org --api-key <key>
 
 ---
 
+## Architecture & Rules
+
 ### Version Bumping Rules
+
+Calq Flow algorithmically calculates version bumps based on IL changes, ensuring strict, policy-driven release management:
 
 | Condition | Bump | Example |
 | :--- | :--- | :--- |
@@ -174,41 +195,40 @@ calq-flow publish --sources nuget.org --api-key <key>
 | Non-breaking change (added member / IL change) | Patch | `0.1.0` → `0.1.1` |
 | Major version | Manual only | Edit `<Version>` in `.csproj` |
 
-The higher version between the `.csproj` `<Version>` and the computed syntactic version always wins, ensuring idempotency and manual override support.
+The higher version between the `.csproj` `<Version>` and the computed syntactic version always prevails, ensuring idempotency and robust manual override support.
 
-### Project Discovery
+### Project Discovery & Test Association
 
-- Recursively scans for `*.*proj` files.
+- Recursively maps `*.*proj` files.
 - Excludes projects matching `*Test*`, `*Example*`, `*Sample*` (and identically named directories).
-- Ignores nested projects (a project inside another project's directory tree).
+- Ignores nested projects.
+- **Test Enforcement:** For each library project, Calq Flow automatically searches upward for `{ProjectName}Test*.*proj` files and strictly enforces test passes before authorizing a publish.
 
-### Test Project Association
+### Syntactic Versioning (The Objective IL Diff)
 
-For each discovered library project, Calq Flow searches upward from the project directory for files matching `{ProjectName}Test*.*proj`, bounded by the Git repository root.
-
-### Syntactic Versioning (IL Comparison)
-
-Assemblies are compared at the IL/metadata level using `System.Reflection.MetadataLoadContext`:
+Assemblies are analyzed at the binary level using `System.Reflection.MetadataLoadContext`:
 
 - **Breaking:** Deleted member or modified attributes.
 - **Non-Breaking:** Added member or IL bytecode change.
 - Compiler-generated attributes (`AsyncStateMachine`, `NullableContext`, `Nullable`, `CompilerGenerated`, `IteratorStateMachine`) are filtered out to prevent false positives.
 - Falls back to byte-level comparison if no syntactic changes are found.
 
-### Shadow Copy
+### The "Shadow Copy" Fallback
 
-When the previous version's DLL can't be downloaded from NuGet, Calq Flow creates a temporary copy of the repository, checks out the base commit, and builds the old version there. The original working directory is never modified. The shadow copy is created at most once per publish run and cleaned up afterward.
+When the previous version's DLL cannot be retrieved from NuGet, Calq Flow relies on a highly resilient fallback mechanism. It automates standard developer file-operations (`cp` + `git checkout`) to provision a temporary workspace reflecting the repository's previous state, compiling the baseline DLLs in isolation. 
+
+This deterministic approach guarantees the pipeline never fails due to an unreachable package registry. The primary working directory is never mutated. The shadow workspace is generated at most once per publish cycle and is automatically purged upon completion.
 
 ### Tagging & Branching
 
-- Creates a global tag `{prefix}{version}` (e.g., `v0.2.0`).
+- Provisions a global tag `{prefix}{version}` (e.g., `v0.2.0`).
 - Force-updates a rolling branch pointer (default `latest`) to the release commit. Disable by passing `--rolling-branch ""`.
 
 ---
 
 ## Building C# GitHub Actions
 
-Calq Flow is itself a C# GitHub Action. You can reuse its `action.yaml` and workflows to turn any .NET console app into a GitHub Action.
+Calq Flow is internally architected as a C# GitHub Action. You can leverage its `action.yaml` and workflows to transform any strongly-typed .NET console application into a GitHub Action, eliminating the reliance on difficult-to-maintain bash and YAML configurations.
 
 ### Steps
 
@@ -229,9 +249,10 @@ TOOL_PACKAGE="YourTool.Cli"
 TOOL_CMD="your-tool"
 ```
 
-**3.** Adapt `action.yaml` to your needs — remove steps you don't need, such as the self-test install.
+**3.** Adapt `action.yaml` to your requirements — remove steps you do not need, such as the self-install step.
 
-**4.** Copy the workflows from [`.github/workflows/`](https://github.com/calq-framework/flow/tree/main/.github/workflows). Replace `uses: ./` with `uses: your-org/your-tool@latest` (or `@v1.0.0`), and adjust the `subcommand` values. The `./` path is only used by Calq Flow to test its own action from source.
+**4. Setup Workflows**
+Copy the templates from [`.github/workflows/`](https://github.com/calq-framework/flow/tree/main/.github/workflows). Replace `uses: ./` with `uses: your-org/your-tool@latest` and update the `subcommand` inputs to align with your tool's CLI.
 
 ## License
 Calq Flow is dual-licensed under GNU AGPLv3 and the Calq Commercial License.
