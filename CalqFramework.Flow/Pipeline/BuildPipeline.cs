@@ -13,10 +13,10 @@ public static class BuildPipeline {
     ///     Also builds and runs the associated test project if one exists.
     /// </summary>
     public static void BuildCurrent(string projectPath, Dictionary<string, string> testAssociations) {
-        RUN($"dotnet restore \"{projectPath}\" --locked-mode");
+        RestoreProject(projectPath);
 
         if (testAssociations.TryGetValue(projectPath, out string? testProjectPath)) {
-            RUN($"dotnet restore \"{testProjectPath}\" --locked-mode");
+            RestoreProject(testProjectPath);
             RUN($"dotnet build \"{testProjectPath}\" -c Release {DeterministicFlags}");
             RUN($"dotnet test \"{testProjectPath}\" -c Release --no-build");
         } else {
@@ -56,6 +56,22 @@ public static class BuildPipeline {
         string projectDir = Path.GetDirectoryName(projectPath)!;
         string[] nupkgs = Directory.GetFiles(projectDir, "*.nupkg", SearchOption.AllDirectories);
         return nupkgs.FirstOrDefault();
+    }
+
+    /// <summary>
+    ///     Restores a project, using --locked-mode if a packages.lock.json exists.
+    ///     Emits a warning when no lock file is found.
+    /// </summary>
+    private static void RestoreProject(string projectPath) {
+        string projectDir = Path.GetDirectoryName(projectPath)!;
+        string lockFilePath = Path.Combine(projectDir, "packages.lock.json");
+
+        if (File.Exists(lockFilePath)) {
+            RUN($"dotnet restore \"{projectPath}\" --locked-mode");
+        } else {
+            Console.Error.WriteLine($"[Warning] No packages.lock.json found for {Path.GetFileNameWithoutExtension(projectPath)}. Consider enabling RestorePackagesWithLockFile for reproducible builds.");
+            RUN($"dotnet restore \"{projectPath}\"");
+        }
     }
 
     /// <summary>
