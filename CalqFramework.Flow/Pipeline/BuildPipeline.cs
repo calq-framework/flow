@@ -1,3 +1,4 @@
+using System.Xml;
 using CalqFramework.Flow.Diff;
 
 namespace CalqFramework.Flow.Pipeline;
@@ -7,6 +8,8 @@ namespace CalqFramework.Flow.Pipeline;
 /// </summary>
 public static class BuildPipeline {
     private const string DeterministicFlags = "-p:Deterministic=true -p:ContinuousIntegrationBuild=true " + "-p:PathMap=\"$(MSBuildProjectDirectory)=/src\"";
+    private const string SourceLinkBuildFlags = "-p:EmbedUntrackedSources=true -p:DebugType=embedded";
+    private const string SourceLinkPackFlags = "-p:PublishRepositoryUrl=true";
 
     /// <summary>
     ///     Builds the current project in the working directory.
@@ -14,13 +17,14 @@ public static class BuildPipeline {
     /// </summary>
     public static void BuildCurrent(string projectPath, Dictionary<string, string> testAssociations) {
         RestoreProject(projectPath);
+        string sourceLinkFlags = HasSourceLink(projectPath) ? SourceLinkBuildFlags : "";
 
         if (testAssociations.TryGetValue(projectPath, out string? testProjectPath)) {
             RestoreProject(testProjectPath);
-            RUN($"dotnet build \"{testProjectPath}\" -c Release {DeterministicFlags}");
+            RUN($"dotnet build \"{testProjectPath}\" -c Release {DeterministicFlags} {sourceLinkFlags}");
             RUN($"dotnet test \"{testProjectPath}\" -c Release --no-build");
         } else {
-            RUN($"dotnet build \"{projectPath}\" -c Release {DeterministicFlags}");
+            RUN($"dotnet build \"{projectPath}\" -c Release {DeterministicFlags} {sourceLinkFlags}");
         }
     }
 
@@ -51,11 +55,38 @@ public static class BuildPipeline {
     /// </summary>
     public static string? Pack(string projectPath, Version targetVersion) {
         string versionStr = targetVersion.ToString(3);
-        RUN($"dotnet pack \"{projectPath}\" -c Release --no-build -p:PackageVersion={versionStr}");
+        string sourceLinkFlags = HasSourceLink(projectPath) ? SourceLinkPackFlags : "";
+        RUN($"dotnet pack \"{projectPath}\" -c Release --no-build -p:PackageVersion={versionStr} {sourceLinkFlags}");
 
         string projectDir = Path.GetDirectoryName(projectPath)!;
         string[] nupkgs = Directory.GetFiles(projectDir, "*.nupkg", SearchOption.AllDirectories);
         return nupkgs.FirstOrDefault();
+    }
+
+    /// <summary>
+    ///     Detects whether a project uses SourceLink, either via an explicit package
+    ///     reference (Microsoft.SourceLink.*) or the modern .NET 8+ implicit support
+    ///     indicated by PublishRepositoryUrl being set to true.
+    /// </summary>
+    private static bool HasSourceLink(string projectPath) {
+        var doc = new XmlDocument();
+        doc.Load(projectPath);
+
+        // Check for explicit SourceLink package reference
+        var packageRefs = doc.SelectNodes("/Project/ItemGroup/PackageReference");
+        if (packageRefs != null) {
+            foreach (XmlElement pkg in packageRefs) {
+                string? include = pkg.GetAttribute("Include");
+                if (include != null && include.StartsWith("Microsoft.SourceLink."))
+                    return true;
+            }
+        }
+
+        // Check for modern .NET 8+ implicit SourceLink via PublishRepositoryUrl
+        var node = doc.SelectSingleNode("/Project/PropertyGroup/PublishRepositoryUrl");
+        return node != null
+            && bool.TryParse(node.InnerText.Trim(), out bool value)
+            && value;
     }
 
     /// <summary>
