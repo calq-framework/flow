@@ -34,7 +34,7 @@ public static class VersionResolver {
             return null;
         }
 
-        return Version.TryParse(match.Groups[1].Value, out Version version) ? version : null;
+        return Version.TryParse(match.Groups[1].Value, out Version? version) ? version : null;
     }
 
     /// <summary>
@@ -72,7 +72,7 @@ public static class VersionResolver {
                 versionText = versionText[..dashIndex];
             }
 
-            return Version.TryParse(versionText, out Version v) ? v : null;
+            return Version.TryParse(versionText, out Version? v) ? v : null;
         }
 
         // Fall back to <VersionPrefix>
@@ -80,7 +80,7 @@ public static class VersionResolver {
             .FirstOrDefault();
         if (prefixElement != null) {
             string prefixText = prefixElement.Value.Trim();
-            return Version.TryParse(prefixText, out Version v) ? v : null;
+            return Version.TryParse(prefixText, out Version? v) ? v : null;
         }
 
         return null;
