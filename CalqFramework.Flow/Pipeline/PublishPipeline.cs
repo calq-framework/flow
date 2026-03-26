@@ -11,8 +11,13 @@ public static class PublishPipeline {
         var publishedPackages = new List<string>();
 
         foreach (string nupkgPath in nupkgPaths) {
-            string packageId = Path.GetFileNameWithoutExtension(nupkgPath)
-                .Split('.')[0]; // rough extraction from "Name.1.2.3.nupkg"
+            string fileName = Path.GetFileNameWithoutExtension(nupkgPath);
+            // NuGet filenames are {PackageId}.{Version} — version starts with a digit
+            string[] parts = fileName.Split('.');
+            int versionIndex = Array.FindIndex(parts, p => p.Length > 0 && char.IsDigit(p[0]));
+            string packageId = versionIndex > 0
+                ? string.Join('.', parts[..versionIndex])
+                : fileName;
 
             if (dryRun) {
                 Console.Error.WriteLine($"[dry-run] Would push {Path.GetFileName(nupkgPath)}");
