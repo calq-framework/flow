@@ -124,6 +124,7 @@ public class FlowManager {
         foreach (string project in changedProjects) {
             BuildPipeline.BuildCurrent(project, testAssociations);
         }
+
         foreach (string project in projects) {
             if (!changedProjects.Contains(project)) {
                 BuildPipeline.BuildCurrent(project, testAssociations);

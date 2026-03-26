@@ -54,7 +54,8 @@ public static class SyntacticVersioning {
                     return latest != null ? Directory.GetFiles(latest, "*.dll") : [];
                 });
         }
-        string[] sharedAssemblies = frameworkAssemblies.ToArray();
+
+        string[] sharedAssemblies = [.. frameworkAssemblies];
 
         // Each MetadataLoadContext gets its own resolver with sibling DLLs from its
         // build directory only. Sharing a resolver causes FileLoadException when both
@@ -69,8 +70,13 @@ public static class SyntacticVersioning {
         HashSet<string> baseFileNames = new(baseSiblings.Select(Path.GetFileName)!, StringComparer.OrdinalIgnoreCase);
         IEnumerable<string> currentFallbacks = currentSiblings.Where(p => !baseFileNames.Contains(Path.GetFileName(p)));
 
-        var currentResolver = new PathAssemblyResolver(sharedAssemblies.Concat(currentSiblings).Distinct());
-        var baseResolver = new PathAssemblyResolver(sharedAssemblies.Concat(baseSiblings).Concat(currentFallbacks).Distinct());
+        var currentResolver = new PathAssemblyResolver(
+            sharedAssemblies.Concat(currentSiblings)
+                .Distinct());
+        var baseResolver = new PathAssemblyResolver(
+            sharedAssemblies.Concat(baseSiblings)
+                .Concat(currentFallbacks)
+                .Distinct());
 
         using var currentMlc = new MetadataLoadContext(currentResolver);
         using var baseMlc = new MetadataLoadContext(baseResolver);
@@ -172,11 +178,12 @@ public static class SyntacticVersioning {
             _ => ""
         };
 
-    private static List<string> GetFilteredAttributes(MemberInfo member) =>
-        [.. member.GetCustomAttributesData()
+    private static List<string> GetFilteredAttributes(MemberInfo member) => [
+        .. member.GetCustomAttributesData()
             .Where(a => !IgnoredAttributes.Contains(a.AttributeType.FullName ?? ""))
             .Select(a => a.ToString())
-            .OrderBy(a => a)];
+            .OrderBy(a => a)
+    ];
 
     /// <summary>
     ///     Searches for a compiled assembly DLL in standard output directories.
