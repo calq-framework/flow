@@ -1,7 +1,7 @@
 {
   "version": 1,
   "dependencies": {
-    "net9.0": {
+    "net10.0": {
       "CalqFramework.Cmd": {
         "type": "Direct",
         "requested": "[0.36.0, )",
@@ -22,11 +22,7 @@
         "type": "Direct",
         "requested": "[10.0.5, )",
         "resolved": "10.0.5",
-        "contentHash": "z9yyFZcuCwtZXrxxDc2nBfB5lTHf96gS/rsD38Lcv6Ok25TOYPjNKlqpTZUqu2HTLPAM4w+/WjGL6gi9cIJO6w==",
-        "dependencies": {
-          "System.Collections.Immutable": "10.0.5",
-          "System.Reflection.Metadata": "10.0.5"
-        }
+        "contentHash": "z9yyFZcuCwtZXrxxDc2nBfB5lTHf96gS/rsD38Lcv6Ok25TOYPjNKlqpTZUqu2HTLPAM4w+/WjGL6gi9cIJO6w=="
       },
       "Microsoft.Build.Tasks.Git": {
         "type": "Transitive",
@@ -37,19 +33,6 @@
         "type": "Transitive",
         "resolved": "8.0.0",
         "contentHash": "dk9JPxTCIevS75HyEQ0E4OVAFhB2N+V9ShCXf8Q6FkUQZDkgLI12y679Nym1YqsiSysuQskT7Z+6nUf3yab6Vw=="
-      },
-      "System.Collections.Immutable": {
-        "type": "Transitive",
-        "resolved": "10.0.5",
-        "contentHash": "nozrOKfEgfrvvswkCfxaumY68RA/x1F3ZYwtwRvva8ul91NCnUzb6MKpl5/P7u9v/nIagVL4OXXj8d007tucxw=="
-      },
-      "System.Reflection.Metadata": {
-        "type": "Transitive",
-        "resolved": "10.0.5",
-        "contentHash": "fEAXJCtauNLYr5ESg3t6HE2Av6urWdJdymxZbuSt/DDqhtNtLtUtXTEpKbp0vkTdyBJwmaha8d2454vSzS/lcQ==",
-        "dependencies": {
-          "System.Collections.Immutable": "10.0.5"
-        }
       }
     }
   }
