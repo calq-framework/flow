@@ -115,23 +115,33 @@ public static class BuildPipeline {
 
     /// <summary>
     ///     Attempts to download a package from all configured NuGet sources and find a matching file.
-    ///     Uses a temporary project with dotnet restore to leverage NuGet's built-in source resolution.
-    /// </summary>
-    /// <summary>
-    ///     Attempts to download a package from all configured NuGet sources and find a matching file.
     ///     Uses dotnet restore for library packages and dotnet tool install for tool packages.
     /// </summary>
     public static string? TryDownloadFromNuGet(string projectPath, string packageId, Version version, string searchPattern) {
         string versionStr = version.ToString(3);
         string tempPath = Path.Combine(Path.GetTempPath(), $"flow-nuget-{Guid.NewGuid():N}");
+        bool deleteTempPath = true;
 
         try {
             Directory.CreateDirectory(tempPath);
 
             if (IsToolPackage(projectPath)) {
-                // Tool packages cannot be referenced via PackageReference.
-                // dotnet tool install populates the global NuGet cache.
-                RUN($"dotnet tool install {packageId} --version {versionStr} --tool-path \"{Path.Combine(tempPath, "tools")}\"");
+                // Tool packages cannot be referenced via PackageReference (NU1212).
+                // dotnet tool install places the package in {tool-path}/.store/.
+                string toolPath = Path.Combine(tempPath, "tools");
+                RUN($"dotnet tool install {packageId} --version {versionStr} --tool-path \"{toolPath}\"");
+
+                // Search the .store for the requested file pattern.
+                string storePath = Path.Combine(toolPath, ".store", packageId.ToLowerInvariant(), versionStr);
+                if (Directory.Exists(storePath)) {
+                    string[] files = Directory.GetFiles(storePath, searchPattern, SearchOption.AllDirectories);
+                    if (files.Length > 0) {
+                        deleteTempPath = false; // keep alive — caller holds a reference
+                        return files[0];
+                    }
+                }
+
+                return null;
             } else {
                 // Library packages: create a temporary project and restore.
                 // Derive the TFM from the running runtime so the probe stays compatible
@@ -175,9 +185,11 @@ public static class BuildPipeline {
         } catch {
             return null;
         } finally {
-            try {
-                Directory.Delete(tempPath, true);
-            } catch {
+            if (deleteTempPath) {
+                try {
+                    Directory.Delete(tempPath, true);
+                } catch {
+                }
             }
         }
     }
