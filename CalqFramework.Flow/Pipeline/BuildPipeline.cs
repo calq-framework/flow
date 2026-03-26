@@ -36,7 +36,7 @@ public static class BuildPipeline {
     /// </summary>
     public static string? ResolveBaseDll(string projectPath, string projectName, Version baseVersion, List<string> sources, string? shadowCopyPath) {
         // Strategy 1: Try downloading from NuGet
-        string? nugetDll = TryDownloadFromNuGet(projectName, baseVersion, sources);
+        string? nugetDll = TryDownloadFromNuGet(projectName, baseVersion, sources, $"{projectName}.dll");
         if (nugetDll != null) {
             return nugetDll;
         }
@@ -106,9 +106,9 @@ public static class BuildPipeline {
     }
 
     /// <summary>
-    ///     Attempts to download a package from configured NuGet sources and extract its DLL.
+    ///     Attempts to download a package from configured NuGet sources and find a matching file.
     /// </summary>
-    private static string? TryDownloadFromNuGet(string packageId, Version version, List<string> sources) {
+    public static string? TryDownloadFromNuGet(string packageId, Version version, List<string> sources, string searchPattern) {
         string versionStr = version.ToString(3);
         string tempPath = Path.Combine(Path.GetTempPath(), $"flow-nuget-{Guid.NewGuid():N}");
 
@@ -116,21 +116,13 @@ public static class BuildPipeline {
             Directory.CreateDirectory(tempPath);
 
             foreach (string source in sources) {
-                try {
-                    CMD($"dotnet nuget download {packageId} --version {versionStr} --source {source} --output-directory \"{tempPath}\"");
-                } catch {
-                    // nuget download is .NET 9+ — fall back to nuget install
-                    try {
-                        CMD($"nuget install {packageId} -Version {versionStr} -Source {source} -OutputDirectory \"{tempPath}\" -NonInteractive");
-                    } catch {
-                        continue;
-                    }
+                if (!DownloadPackage(packageId, versionStr, source, tempPath)) {
+                    continue;
                 }
 
-                // Find the DLL inside the downloaded package
-                string[] dlls = Directory.GetFiles(tempPath, $"{packageId}.dll", SearchOption.AllDirectories);
-                if (dlls.Length > 0) {
-                    return dlls[0];
+                string[] files = Directory.GetFiles(tempPath, searchPattern, SearchOption.AllDirectories);
+                if (files.Length > 0) {
+                    return files[0];
                 }
             }
 
@@ -138,9 +130,24 @@ public static class BuildPipeline {
         } catch {
             return null;
         }
-        // Note: temp directory is intentionally NOT cleaned up here —
-        // the DLL path is returned and used by the caller. Cleanup happens
-        // at the end of the publish pipeline via CleanupTempDirs.
+    }
+
+
+    /// <summary>
+    ///     Attempts to download a NuGet package to the specified directory.
+    /// </summary>
+    private static bool DownloadPackage(string packageId, string versionStr, string source, string outputPath) {
+        try {
+            CMD($"dotnet nuget download {packageId} --version {versionStr} --source {source} --output-directory \"{outputPath}\"");
+            return true;
+        } catch {
+            try {
+                CMD($"nuget install {packageId} -Version {versionStr} -Source {source} -OutputDirectory \"{outputPath}\" -NonInteractive");
+                return true;
+            } catch {
+                return false;
+            }
+        }
     }
 
     /// <summary>

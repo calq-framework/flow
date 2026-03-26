@@ -67,7 +67,47 @@ public class FlowManager {
         List<string> changedProjects = ChangeDetection.DetectChangedProjects(projects, Remote, TagPrefix);
 
         if (changedProjects.Count == 0) {
-            // No project changes, but still update rolling branch to track latest commits
+            // No source changes — but the tagged version may not be published to all
+            // requested sources yet (e.g. first publish goes to GitHub Packages, second
+            // workflow republishes to nuget.org). Download existing .nupkg and re-push.
+            if (latestTag != null) {
+                var downloadedNupkgs = new List<string>();
+                foreach (string project in projects) {
+                    string packageId = Path.GetFileNameWithoutExtension(project);
+                    string? nupkg = BuildPipeline.TryDownloadFromNuGet(packageId, latestTag, Sources, "*.nupkg");
+                    if (nupkg != null) {
+                        downloadedNupkgs.Add(nupkg);
+                    }
+                }
+
+                if (downloadedNupkgs.Count > 0) {
+                    var republishedPackages = new List<string>();
+                    if (dryRun) {
+                        foreach (string project in projects) {
+                            string name = Path.GetFileNameWithoutExtension(project);
+                            Console.Error.WriteLine($"[dry-run] Would republish {name} {latestTag.ToString(3)}");
+                            republishedPackages.Add(name);
+                        }
+                    } else {
+                        republishedPackages = PublishPipeline.Execute(downloadedNupkgs, Sources, sign, apiKey, false);
+                    }
+
+                    if (!dryRun && !string.IsNullOrEmpty(rollingBranch)) {
+                        TaggingStrategy.UpdateRollingBranch(rollingBranch, Remote);
+                    }
+
+                    return new PublishResult {
+                        TargetVersion = latestTag.ToString(3),
+                        PreviousVersion = latestTag.ToString(3),
+                        ChangedProjects = [.. projects.Select(p => Path.GetFileNameWithoutExtension(p))],
+                        PublishedPackages = republishedPackages,
+                        Diffs = [],
+                        DryRun = dryRun
+                    };
+                }
+            }
+
+            // No tag or no packages found — nothing to do
             if (!dryRun && !string.IsNullOrEmpty(rollingBranch)) {
                 TaggingStrategy.UpdateRollingBranch(rollingBranch, Remote);
             }
