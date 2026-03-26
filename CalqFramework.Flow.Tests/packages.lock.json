@@ -4,18 +4,18 @@
     "net10.0": {
       "CalqFramework.Cli": {
         "type": "Direct",
-        "requested": "[1.0.0, )",
-        "resolved": "1.0.0",
-        "contentHash": "UkAa1f5sHcImj3i/fpFC3p6ih4YYYUTHotFUjkkiJ4Dmc20xa6ZbblOsyINvcTS9UHH3FlepWX/kRuUiUGAPxQ==",
+        "requested": "[0.63.2, )",
+        "resolved": "0.63.2",
+        "contentHash": "AegTcz8lH6R9qthkpBxNDelkWYvyW3ncgG08aSu8YbIyMcjom6r+nZJs0kf0BAIlLDl+TAMnlXFdzxiwdse/8w==",
         "dependencies": {
-          "CalqFramework.DataAccess": "1.0.0"
+          "CalqFramework.DataAccess": "0.63.2"
         }
       },
       "CalqFramework.Cmd": {
         "type": "Direct",
-        "requested": "[1.0.0, )",
-        "resolved": "1.0.0",
-        "contentHash": "HxandOBjNLBygbdKrzAe08J8ABilPdgoBd8BA6C1WUN6LUVS18f+zX1QKYcCA6YyNlkxk5rWi05pLoDzdbI0CA=="
+        "requested": "[0.36.1, )",
+        "resolved": "0.36.1",
+        "contentHash": "vC32DuTAzaT18OvR/jfgZ21DqOivIAw903SGhmgyAFw4YfMKp6alk8rFENeRR7feiA3wrlr+t5pHOxcZUCDDQA=="
       },
       "coverlet.collector": {
         "type": "Direct",
@@ -52,8 +52,8 @@
       },
       "CalqFramework.DataAccess": {
         "type": "Transitive",
-        "resolved": "1.0.0",
-        "contentHash": "pEROcXb9ukFKiiXjoUHxQC1POTQSCU1FNjLCw2js5v9aar7xGnd9stPYyZ64tpB36hEnbS5+ppBtuyujRddExw=="
+        "resolved": "0.63.2",
+        "contentHash": "3lUqexVvDXEw8Ph2Mjswxu2lMRxsHAy+nmZoN6l0ppkRX+Af00Rw1ImC1OlYzoI4S/ynkSI77um0U4LWfVVY1Q=="
       },
       "Microsoft.CodeCoverage": {
         "type": "Transitive",
