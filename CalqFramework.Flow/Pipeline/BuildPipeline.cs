@@ -114,27 +114,33 @@ public static class BuildPipeline {
         try {
             Directory.CreateDirectory(tempPath);
 
-            // Create a minimal project that references the target package.
+            // Strategy 1: PackageReference restore (works for library packages).
             // Derive the TFM from the running runtime so the probe stays compatible
             // with packages that target newer frameworks (e.g. net10.0).
-            string tfm = $"net{Environment.Version.Major}.0";
-            string projectPath = Path.Combine(tempPath, "Probe.csproj");
-            File.WriteAllText(
-                projectPath,
-                $"""
-                 <Project Sdk="Microsoft.NET.Sdk">
-                   <PropertyGroup>
-                     <TargetFramework>{tfm}</TargetFramework>
-                   </PropertyGroup>
-                   <ItemGroup>
-                     <PackageReference Include="{packageId}" Version="{versionStr}" />
-                   </ItemGroup>
-                 </Project>
-                 """);
+            try {
+                string tfm = $"net{Environment.Version.Major}.0";
+                string projectPath = Path.Combine(tempPath, "Probe.csproj");
+                File.WriteAllText(
+                    projectPath,
+                    $"""
+                     <Project Sdk="Microsoft.NET.Sdk">
+                       <PropertyGroup>
+                         <TargetFramework>{tfm}</TargetFramework>
+                       </PropertyGroup>
+                       <ItemGroup>
+                         <PackageReference Include="{packageId}" Version="{versionStr}" />
+                       </ItemGroup>
+                     </Project>
+                     """);
 
-            CMD($"dotnet restore \"{projectPath}\"");
+                RUN($"dotnet restore \"{projectPath}\"");
+            } catch {
+                // Strategy 2: Tool install (works for tool packages with PackAsTool).
+                // This populates the global NuGet cache just like a regular restore.
+                RUN($"dotnet tool install {packageId} --version {versionStr} --tool-path \"{Path.Combine(tempPath, "tools")}\"");
+            }
 
-            // The .nupkg is now in the global packages cache
+            // The package is now in the global packages cache
             string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             string cachePath = Path.Combine(home, ".nuget", "packages", packageId.ToLowerInvariant(), versionStr);
 
