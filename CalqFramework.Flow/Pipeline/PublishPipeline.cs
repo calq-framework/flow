@@ -15,9 +15,7 @@ public static class PublishPipeline {
             // NuGet filenames are {PackageId}.{Version} — version starts with a digit
             string[] parts = fileName.Split('.');
             int versionIndex = Array.FindIndex(parts, p => p.Length > 0 && char.IsDigit(p[0]));
-            string packageId = versionIndex > 0
-                ? string.Join('.', parts[..versionIndex])
-                : fileName;
+            string packageId = versionIndex > 0 ? string.Join('.', parts[..versionIndex]) : fileName;
 
             if (dryRun) {
                 Console.Error.WriteLine($"[dry-run] Would push {Path.GetFileName(nupkgPath)}");

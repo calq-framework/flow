@@ -1,4 +1,3 @@
-using System.Xml;
 using CalqFramework.Flow.Diff;
 
 namespace CalqFramework.Flow.Pipeline;
@@ -73,20 +72,19 @@ public static class BuildPipeline {
         doc.Load(projectPath);
 
         // Check for explicit SourceLink package reference
-        var packageRefs = doc.SelectNodes("/Project/ItemGroup/PackageReference");
+        XmlNodeList? packageRefs = doc.SelectNodes("/Project/ItemGroup/PackageReference");
         if (packageRefs != null) {
             foreach (XmlElement pkg in packageRefs) {
                 string? include = pkg.GetAttribute("Include");
-                if (include != null && include.StartsWith("Microsoft.SourceLink."))
+                if (include != null && include.StartsWith("Microsoft.SourceLink.")) {
                     return true;
+                }
             }
         }
 
         // Check for modern .NET 8+ implicit SourceLink via PublishRepositoryUrl
-        var node = doc.SelectSingleNode("/Project/PropertyGroup/PublishRepositoryUrl");
-        return node != null
-            && bool.TryParse(node.InnerText.Trim(), out bool value)
-            && value;
+        XmlNode? node = doc.SelectSingleNode("/Project/PropertyGroup/PublishRepositoryUrl");
+        return node != null && bool.TryParse(node.InnerText.Trim(), out bool value) && value;
     }
 
     /// <summary>
@@ -118,16 +116,18 @@ public static class BuildPipeline {
 
             // Create a minimal project that references the target package
             string projectPath = Path.Combine(tempPath, "Probe.csproj");
-            File.WriteAllText(projectPath, $"""
-                <Project Sdk="Microsoft.NET.Sdk">
-                  <PropertyGroup>
-                    <TargetFramework>net9.0</TargetFramework>
-                  </PropertyGroup>
-                  <ItemGroup>
-                    <PackageReference Include="{packageId}" Version="{versionStr}" />
-                  </ItemGroup>
-                </Project>
-                """);
+            File.WriteAllText(
+                projectPath,
+                $"""
+                 <Project Sdk="Microsoft.NET.Sdk">
+                   <PropertyGroup>
+                     <TargetFramework>net9.0</TargetFramework>
+                   </PropertyGroup>
+                   <ItemGroup>
+                     <PackageReference Include="{packageId}" Version="{versionStr}" />
+                   </ItemGroup>
+                 </Project>
+                 """);
 
             CMD($"dotnet restore \"{projectPath}\"");
 
@@ -152,7 +152,10 @@ public static class BuildPipeline {
         } catch {
             return null;
         } finally {
-            try { Directory.Delete(tempPath, true); } catch { }
+            try {
+                Directory.Delete(tempPath, true);
+            } catch {
+            }
         }
     }
 

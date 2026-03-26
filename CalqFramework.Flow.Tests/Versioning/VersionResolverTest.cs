@@ -107,10 +107,10 @@ public class VersionResolverTest : IDisposable {
         string proj2 = TestHelper.CreateProject(_workDir, "LibB", "2.0.0");
 
         Dictionary<string, Version> versions = VersionResolver.ResolveProjectVersions(
-            [
-                proj1,
-                proj2
-            ]);
+        [
+            proj1,
+            proj2
+        ]);
 
         Assert.Equal(2, versions.Count);
         Assert.Equal(new Version(1, 0, 0), versions[proj1]);
