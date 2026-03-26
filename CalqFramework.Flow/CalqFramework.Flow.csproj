@@ -8,7 +8,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
     <PackageId>CalqFramework.Flow</PackageId>
-    <Version>0.1.0</Version>
+    <Version>0.3.0</Version>
     <PackageProjectUrl>https://github.com/calq-framework</PackageProjectUrl>
     <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
