@@ -56,7 +56,7 @@ discover → detect changes → build → resolve base DLLs → IL compare → v
 
 1. **Discovery:** Recursively maps the monorepo, locating `*.*proj` files while excluding tests, examples, and nested projects.
 2. **Impact Analysis:** Detects exactly which modules changed since the last version tag using `git diff`.
-3. **Compilation & Testing:** Builds changed projects and automatically enforces associated test suites. Unchanged projects are also built to ensure lockstep packing. Projects with a `packages.lock.json` are restored in `--locked-mode` for reproducibility; projects without one proceed normally with a warning.
+3. **Compilation & Testing:** Builds changed projects and automatically enforces associated test suites. Unchanged projects are also built to ensure lockstep packing. Projects with a `packages.lock.json` are restored in `--locked-mode` for reproducibility; projects without one proceed normally with a warning. Projects with SourceLink are built with embedded debug symbols and source tracking.
 4. **Base Resolution:** Acquires the previous version's DLL via NuGet download, or seamlessly falls back to a temporary "Shadow Copy" build of the previous Git tree.
 5. **Syntactic Comparison:** Computes the objective truth of your codebase by comparing current vs. base assemblies at the IL/metadata level utilizing `MetadataLoadContext`.
 6. **Versioning:** Algorithmically determines the semantic version: breaking → minor bump, non-breaking → patch bump (pre-1.0 convention).
@@ -377,7 +377,7 @@ See also: [How to Understand Syntactic Versioning](#how-to-understand-syntactic-
 
 For each changed project, Calq Flow resolves the previous version's DLL using a prioritized fallback:
 
-1. **NuGet Download:** Attempts to download the previous version package from configured sources using `dotnet nuget download` (with fallback to `nuget install`)
+1. **NuGet Download:** Attempts to download the previous version package from configured sources using a temporary project restore into the global NuGet cache
 2. **Shadow Copy Build:** If NuGet download fails, creates an isolated shadow copy of the repository and builds the old version there
 
 **Key points:**
@@ -425,6 +425,7 @@ calq-flow publish --rolling-branch ""
 
 **Idempotency:**
 - All push operations use `--skip-duplicate` to tolerate re-runs
+- When no source changes are detected but a tagged version exists, Calq Flow downloads the existing `.nupkg` from any configured source and re-pushes to the requested targets, enabling cross-source republishing (e.g. GitHub Packages → nuget.org)
 - The higher version between hardcoded `.csproj` version and syntactic calculation always wins
 - Lockstep versioning: all projects are packed at the single computed target version
 
