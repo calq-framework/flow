@@ -24,7 +24,7 @@ Traditional versioning relies on human-in-the-loop subjective data (commit messa
 | **Test Integration** | Auto-discovers and enforces test runs | Not included |
 | **Build / Pack / Push** | Complete CI/CD pipeline orchestration | Not included (versioning only) |
 | **Configuration** | Zero-config / CLI flags | `GitVersion.yml` |
-| **GitHub Action Architecture** | Native Composite (millisecond execution, zero Docker overhead) | Docker-based (container initialization latency) |
+| **GitHub Action Execution** | Native | Docker (container initialization overhead) |
 
 ### Code Comparison
 
