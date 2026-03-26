@@ -127,7 +127,7 @@
       "calqframework.flow": {
         "type": "Project",
         "dependencies": {
-          "CalqFramework.Cmd": "[1.0.0, )",
+          "CalqFramework.Cmd": "[0.36.0, )",
           "System.Reflection.MetadataLoadContext": "[10.0.5, )"
         }
       }
