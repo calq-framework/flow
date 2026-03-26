@@ -41,9 +41,15 @@ public static class SyntacticVersioning {
         string runtimeDir = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
         string[] runtimeAssemblies = Directory.GetFiles(runtimeDir, "*.dll");
 
+        // Include all sibling DLLs so transitive dependencies are resolved.
+        IEnumerable<string> siblingAssemblies = new[] { currentDll, baseDll }
+            .Select(dll => Path.GetDirectoryName(dll)!)
+            .Distinct()
+            .SelectMany(dir => Directory.GetFiles(dir, "*.dll"));
+
         var resolver = new PathAssemblyResolver(
-            runtimeAssemblies.Append(currentDll)
-                .Append(baseDll));
+            runtimeAssemblies.Concat(siblingAssemblies)
+                .Distinct());
 
         using var currentMlc = new MetadataLoadContext(resolver);
         using var baseMlc = new MetadataLoadContext(resolver);
