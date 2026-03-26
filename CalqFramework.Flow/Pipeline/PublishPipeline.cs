@@ -28,7 +28,7 @@ public static class PublishPipeline {
     }
 
     /// <summary>
-    ///     Pushes a .nupkg to all configured sources (§3, §11, §14).
+    ///     Pushes a .nupkg to the specified sources (§3, §11, §14).
     /// </summary>
     private static void PushPackage(string nupkgPath, List<string> sources, string sign, string apiKey) {
         // §11: Optional signing
