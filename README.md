@@ -111,7 +111,7 @@ jobs:
 - `contents: write` permission is required for Git tag creation
 - `packages: write` permission is required for GitHub Packages NuGet push
 
-See also: [How to Pin to a Specific Version](#how-to-pin-to-a-specific-version), [How to Run a Dry-Run on Pull Requests](#how-to-run-a-dry-run-on-pull-requests)
+See also: [How to Configure NuGet Authentication](#how-to-configure-nuget-authentication), [How to Pin to a Specific Version](#how-to-pin-to-a-specific-version), [How to Run a Dry-Run on Pull Requests](#how-to-run-a-dry-run-on-pull-requests)
 
 #### How to Pin to a Specific Version
 
@@ -148,6 +148,50 @@ Dry-run logs exactly which packages would be published and which versions would 
 | `cache` | No | `true` | Enable caching for the tool binary and NuGet packages |
 
 See also: [How to Set Up the GitHub Action](#how-to-set-up-the-github-action)
+
+#### How to Configure NuGet Authentication
+
+Calq Flow separates read and write credentials for NuGet operations:
+
+- **Read (restore/download):** Credentials come from a `NuGet.Config` file, sourced from a dedicated repository (default: `.nuget` under the same GitHub owner). The action clones this repo and installs `NuGet/NuGet.Config` into the runner's `~/.nuget/NuGet/` directory, expanding environment variables via `envsubst`.
+- **Write (push):** Credentials are passed via the `--api-key` CLI parameter, completely independent of `NuGet.Config`.
+
+**Setting up the `.nuget` repository:**
+
+Create a repository named `.nuget` under your GitHub organization with the following structure:
+
+```
+.nuget/
+└── NuGet/
+    └── NuGet.Config
+```
+
+Example `NuGet.Config`:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <packageSources>
+    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" protocolVersion="3" />
+    <add key="main" value="https://nuget.pkg.github.com/your-org/index.json" />
+  </packageSources>
+  <packageSourceCredentials>
+    <main>
+      <add key="Username" value="your-username" />
+      <add key="ClearTextPassword" value="${MAIN_NUGET_PAT}" />
+    </main>
+  </packageSourceCredentials>
+</configuration>
+```
+
+**Key points:**
+- `${MAIN_NUGET_PAT}` is expanded at runtime from your workflow's environment. Pass it via `env: ${{ secrets }}` or explicitly as `env: { MAIN_NUGET_PAT: ${{ secrets.MAIN_NUGET_PAT }} }`
+- The PAT only needs `packages:read` scope — it is used exclusively for `dotnet restore` operations (dependency resolution and base DLL downloads)
+- Push authentication is handled separately by `--api-key`, which accepts `${{ github.token }}` (for GitHub Packages) or a nuget.org API key
+- The `main` source key in `NuGet.Config` corresponds to the default `--sources ["main"]` value — these names must match
+- Override the config repository name with the `nuget-config-repo` action input if needed
+
+See also: [How to Set Up the GitHub Action](#how-to-set-up-the-github-action), [How to Configure Action Inputs](#how-to-configure-action-inputs)
 
 ---
 

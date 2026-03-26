@@ -76,8 +76,8 @@ runs:
         TEMP=$(mktemp -d)
         if git clone --depth 1 "$CONFIG_REPO" "$TEMP" 2>/dev/null; then
           mkdir -p ~/.nuget/NuGet
-          if [ -f "$TEMP/.nuget/NuGet/NuGet.Config" ]; then
-            envsubst < "$TEMP/.nuget/NuGet/NuGet.Config" > ~/.nuget/NuGet/NuGet.Config
+          if [ -f "$TEMP/NuGet/NuGet.Config" ]; then
+            envsubst < "$TEMP/NuGet/NuGet.Config" > ~/.nuget/NuGet/NuGet.Config
             echo "[Info] Successfully synchronized configuration from ${{ inputs.nuget-config-repo }}"
           fi
         else

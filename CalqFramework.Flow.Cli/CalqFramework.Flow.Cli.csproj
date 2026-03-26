@@ -11,7 +11,7 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>calq-flow</ToolCommandName>
     <PackageId>CalqFramework.Flow.Cli</PackageId>
-    <Version>0.1.0</Version>
+    <Version>0.3.0</Version>
     <PackageProjectUrl>https://github.com/calq-framework</PackageProjectUrl>
     <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
