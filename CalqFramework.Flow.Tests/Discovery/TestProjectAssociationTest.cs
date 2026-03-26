@@ -24,7 +24,7 @@ public class TestProjectAssociationTest : IDisposable {
         string testDir = Path.Combine(_workDir, "MyLibTests");
         Directory.CreateDirectory(testDir);
         string testProj = Path.Combine(testDir, "MyLibTests.csproj");
-        File.WriteAllText(testProj, "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net9.0</TargetFramework></PropertyGroup></Project>");
+        File.WriteAllText(testProj, "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
 
         TestHelper.CommitAndPush(_workDir, "init");
 
