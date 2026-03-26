@@ -41,18 +41,17 @@ public static class SyntacticVersioning {
         string runtimeDir = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
         string[] runtimeAssemblies = Directory.GetFiles(runtimeDir, "*.dll");
 
-        // Include all sibling DLLs so transitive dependencies are resolved.
-        IEnumerable<string> siblingAssemblies = new[] { currentDll, baseDll }
-            .Select(dll => Path.GetDirectoryName(dll)!)
-            .Distinct()
-            .SelectMany(dir => Directory.GetFiles(dir, "*.dll"));
+        // Each MetadataLoadContext gets its own resolver with sibling DLLs from its
+        // build directory only. Sharing a resolver causes FileLoadException when both
+        // directories contain the same assembly identity (e.g. same-version dependency).
+        IEnumerable<string> currentSiblings = Directory.GetFiles(Path.GetDirectoryName(currentDll)!, "*.dll");
+        IEnumerable<string> baseSiblings = Directory.GetFiles(Path.GetDirectoryName(baseDll)!, "*.dll");
 
-        var resolver = new PathAssemblyResolver(
-            runtimeAssemblies.Concat(siblingAssemblies)
-                .Distinct());
+        var currentResolver = new PathAssemblyResolver(runtimeAssemblies.Concat(currentSiblings).Distinct());
+        var baseResolver = new PathAssemblyResolver(runtimeAssemblies.Concat(baseSiblings).Distinct());
 
-        using var currentMlc = new MetadataLoadContext(resolver);
-        using var baseMlc = new MetadataLoadContext(resolver);
+        using var currentMlc = new MetadataLoadContext(currentResolver);
+        using var baseMlc = new MetadataLoadContext(baseResolver);
 
         Assembly currentAssembly = currentMlc.LoadFromAssemblyPath(currentDll);
         Assembly baseAssembly = baseMlc.LoadFromAssemblyPath(baseDll);
