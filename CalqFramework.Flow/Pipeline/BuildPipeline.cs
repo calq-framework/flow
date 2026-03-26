@@ -36,7 +36,7 @@ public static class BuildPipeline {
     /// </summary>
     public static string? ResolveBaseDll(string projectPath, string projectName, Version baseVersion, List<string> sources, string? shadowCopyPath) {
         // Strategy 1: Try downloading from NuGet
-        string? nugetDll = TryDownloadFromNuGet(projectName, baseVersion, sources, $"{projectName}.dll");
+        string? nugetDll = TryDownloadFromNuGet(projectName, baseVersion, $"{projectName}.dll");
         if (nugetDll != null) {
             return nugetDll;
         }
@@ -106,47 +106,29 @@ public static class BuildPipeline {
     }
 
     /// <summary>
-    ///     Attempts to download a package from configured NuGet sources and find a matching file.
+    ///     Attempts to download a package from all configured NuGet sources and find a matching file.
     /// </summary>
-    public static string? TryDownloadFromNuGet(string packageId, Version version, List<string> sources, string searchPattern) {
+    public static string? TryDownloadFromNuGet(string packageId, Version version, string searchPattern) {
         string versionStr = version.ToString(3);
         string tempPath = Path.Combine(Path.GetTempPath(), $"flow-nuget-{Guid.NewGuid():N}");
 
         try {
             Directory.CreateDirectory(tempPath);
 
-            foreach (string source in sources) {
-                if (!DownloadPackage(packageId, versionStr, source, tempPath)) {
-                    continue;
-                }
-
-                string[] files = Directory.GetFiles(tempPath, searchPattern, SearchOption.AllDirectories);
-                if (files.Length > 0) {
-                    return files[0];
-                }
-            }
-
-            return null;
-        } catch {
-            return null;
-        }
-    }
-
-
-    /// <summary>
-    ///     Attempts to download a NuGet package to the specified directory.
-    /// </summary>
-    private static bool DownloadPackage(string packageId, string versionStr, string source, string outputPath) {
-        try {
-            CMD($"dotnet nuget download {packageId} --version {versionStr} --source {source} --output-directory \"{outputPath}\"");
-            return true;
-        } catch {
             try {
-                CMD($"nuget install {packageId} -Version {versionStr} -Source {source} -OutputDirectory \"{outputPath}\" -NonInteractive");
-                return true;
+                CMD($"dotnet nuget download {packageId} --version {versionStr} --output-directory \"{tempPath}\"");
             } catch {
-                return false;
+                try {
+                    CMD($"nuget install {packageId} -Version {versionStr} -OutputDirectory \"{tempPath}\" -NonInteractive");
+                } catch {
+                    return null;
+                }
             }
+
+            string[] files = Directory.GetFiles(tempPath, searchPattern, SearchOption.AllDirectories);
+            return files.Length > 0 ? files[0] : null;
+        } catch {
+            return null;
         }
     }
 
