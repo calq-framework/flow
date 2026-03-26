@@ -35,7 +35,7 @@ public static class BuildPipeline {
     /// </summary>
     public static string? ResolveBaseDll(string projectPath, string projectName, Version baseVersion, List<string> sources, string? shadowCopyPath) {
         // Strategy 1: Try downloading from NuGet
-        string? nugetDll = TryDownloadFromNuGet(projectName, baseVersion, $"{projectName}.dll");
+        string? nugetDll = TryDownloadFromNuGet(projectPath, projectName, baseVersion, $"{projectName}.dll");
         if (nugetDll != null) {
             return nugetDll;
         }
@@ -86,6 +86,16 @@ public static class BuildPipeline {
         XmlNode? node = doc.SelectSingleNode("/Project/PropertyGroup/PublishRepositoryUrl");
         return node != null && bool.TryParse(node.InnerText.Trim(), out bool value) && value;
     }
+    /// <summary>
+    ///     Detects whether a project is a .NET tool package (PackAsTool).
+    /// </summary>
+    private static bool IsToolPackage(string projectPath) {
+        var doc = new XmlDocument();
+        doc.Load(projectPath);
+        XmlNode? node = doc.SelectSingleNode("/Project/PropertyGroup/PackAsTool");
+        return node != null && bool.TryParse(node.InnerText.Trim(), out bool value) && value;
+    }
+
 
     /// <summary>
     ///     Restores a project, using --locked-mode if a packages.lock.json exists.
@@ -107,21 +117,29 @@ public static class BuildPipeline {
     ///     Attempts to download a package from all configured NuGet sources and find a matching file.
     ///     Uses a temporary project with dotnet restore to leverage NuGet's built-in source resolution.
     /// </summary>
-    public static string? TryDownloadFromNuGet(string packageId, Version version, string searchPattern) {
+    /// <summary>
+    ///     Attempts to download a package from all configured NuGet sources and find a matching file.
+    ///     Uses dotnet restore for library packages and dotnet tool install for tool packages.
+    /// </summary>
+    public static string? TryDownloadFromNuGet(string projectPath, string packageId, Version version, string searchPattern) {
         string versionStr = version.ToString(3);
         string tempPath = Path.Combine(Path.GetTempPath(), $"flow-nuget-{Guid.NewGuid():N}");
 
         try {
             Directory.CreateDirectory(tempPath);
 
-            // Strategy 1: PackageReference restore (works for library packages).
-            // Derive the TFM from the running runtime so the probe stays compatible
-            // with packages that target newer frameworks (e.g. net10.0).
-            try {
+            if (IsToolPackage(projectPath)) {
+                // Tool packages cannot be referenced via PackageReference.
+                // dotnet tool install populates the global NuGet cache.
+                RUN($"dotnet tool install {packageId} --version {versionStr} --tool-path \"{Path.Combine(tempPath, "tools")}\"");
+            } else {
+                // Library packages: create a temporary project and restore.
+                // Derive the TFM from the running runtime so the probe stays compatible
+                // with packages that target newer frameworks (e.g. net10.0).
                 string tfm = $"net{Environment.Version.Major}.0";
-                string projectPath = Path.Combine(tempPath, "Probe.csproj");
+                string probeProjectPath = Path.Combine(tempPath, "Probe.csproj");
                 File.WriteAllText(
-                    projectPath,
+                    probeProjectPath,
                     $"""
                      <Project Sdk="Microsoft.NET.Sdk">
                        <PropertyGroup>
@@ -133,11 +151,7 @@ public static class BuildPipeline {
                      </Project>
                      """);
 
-                RUN($"dotnet restore \"{projectPath}\"");
-            } catch {
-                // Strategy 2: Tool install (works for tool packages with PackAsTool).
-                // This populates the global NuGet cache just like a regular restore.
-                RUN($"dotnet tool install {packageId} --version {versionStr} --tool-path \"{Path.Combine(tempPath, "tools")}\"");
+                RUN($"dotnet restore \"{probeProjectPath}\"");
             }
 
             // The package is now in the global packages cache
