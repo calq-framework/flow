@@ -55,7 +55,7 @@ public static class BuildPipeline {
     /// </summary>
     public static string? Pack(string projectPath, Version targetVersion) {
         string versionStr = targetVersion.ToString(3);
-        string sourceLinkFlags = HasSourceLink(projectPath) ? SourceLinkPackFlags : "";
+        string sourceLinkFlags = HasSourceLink(projectPath) ? $"{SourceLinkBuildFlags} {SourceLinkPackFlags}" : "";
         RUN($"dotnet pack \"{projectPath}\" -c Release --no-build -p:PackageVersion={versionStr} {sourceLinkFlags}");
 
         string projectDir = Path.GetDirectoryName(projectPath)!;
