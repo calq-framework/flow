@@ -107,6 +107,7 @@ public static class BuildPipeline {
 
     /// <summary>
     ///     Attempts to download a package from all configured NuGet sources and find a matching file.
+    ///     Uses a temporary project with dotnet restore to leverage NuGet's built-in source resolution.
     /// </summary>
     public static string? TryDownloadFromNuGet(string packageId, Version version, string searchPattern) {
         string versionStr = version.ToString(3);
@@ -115,20 +116,43 @@ public static class BuildPipeline {
         try {
             Directory.CreateDirectory(tempPath);
 
-            try {
-                CMD($"dotnet nuget download {packageId} --version {versionStr} --output-directory \"{tempPath}\"");
-            } catch {
-                try {
-                    CMD($"nuget install {packageId} -Version {versionStr} -OutputDirectory \"{tempPath}\" -NonInteractive");
-                } catch {
-                    return null;
+            // Create a minimal project that references the target package
+            string projectPath = Path.Combine(tempPath, "Probe.csproj");
+            File.WriteAllText(projectPath, $"""
+                <Project Sdk="Microsoft.NET.Sdk">
+                  <PropertyGroup>
+                    <TargetFramework>net9.0</TargetFramework>
+                  </PropertyGroup>
+                  <ItemGroup>
+                    <PackageReference Include="{packageId}" Version="{versionStr}" />
+                  </ItemGroup>
+                </Project>
+                """);
+
+            CMD($"dotnet restore \"{projectPath}\"");
+
+            // The .nupkg is now in the global packages cache
+            string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            string cachePath = Path.Combine(home, ".nuget", "packages", packageId.ToLowerInvariant(), versionStr);
+
+            if (Directory.Exists(cachePath)) {
+                string[] files = Directory.GetFiles(cachePath, searchPattern, SearchOption.AllDirectories);
+                if (files.Length > 0) {
+                    return files[0];
                 }
             }
 
-            string[] files = Directory.GetFiles(tempPath, searchPattern, SearchOption.AllDirectories);
-            return files.Length > 0 ? files[0] : null;
+            // Also check for the .nupkg itself in the cache
+            string nupkgInCache = Path.Combine(cachePath, $"{packageId.ToLowerInvariant()}.{versionStr}.nupkg");
+            if (searchPattern == "*.nupkg" && File.Exists(nupkgInCache)) {
+                return nupkgInCache;
+            }
+
+            return null;
         } catch {
             return null;
+        } finally {
+            try { Directory.Delete(tempPath, true); } catch { }
         }
     }
 
