@@ -74,7 +74,7 @@ public class FlowManager {
                 var downloadedNupkgs = new List<string>();
                 foreach (string project in projects) {
                     string packageId = Path.GetFileNameWithoutExtension(project);
-                    string? nupkg = BuildPipeline.TryDownloadFromNuGet(packageId, latestTag, Sources, "*.nupkg");
+                    string? nupkg = BuildPipeline.TryDownloadFromNuGet(packageId, latestTag, "*.nupkg");
                     if (nupkg != null) {
                         downloadedNupkgs.Add(nupkg);
                     }
