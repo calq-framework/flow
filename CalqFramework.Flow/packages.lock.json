@@ -4,9 +4,9 @@
     "net10.0": {
       "CalqFramework.Cmd": {
         "type": "Direct",
-        "requested": "[0.36.0, )",
-        "resolved": "0.36.0",
-        "contentHash": "K726RPFMQU3yQohW6oqRmpDwSVNOcu53wRswtkjazWcEflAf49YC0ZbGNnO88cN4pwC6Uz7f/6oKSbq5MJqR8g=="
+        "requested": "[1.0.0, )",
+        "resolved": "1.0.0",
+        "contentHash": "3C8F0IMHla1ZPQlOF64I4exRP35A6Xcj52tljG+kfa0cFtwUycXxucW30QWHf2z1rvnkNKc1sxHculs2Tr+lSQ=="
       },
       "Microsoft.SourceLink.GitHub": {
         "type": "Direct",

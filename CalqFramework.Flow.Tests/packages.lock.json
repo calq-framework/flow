@@ -4,18 +4,18 @@
     "net10.0": {
       "CalqFramework.Cli": {
         "type": "Direct",
-        "requested": "[0.63.2, )",
-        "resolved": "0.63.2",
-        "contentHash": "AegTcz8lH6R9qthkpBxNDelkWYvyW3ncgG08aSu8YbIyMcjom6r+nZJs0kf0BAIlLDl+TAMnlXFdzxiwdse/8w==",
+        "requested": "[1.0.0, )",
+        "resolved": "1.0.0",
+        "contentHash": "UkAa1f5sHcImj3i/fpFC3p6ih4YYYUTHotFUjkkiJ4Dmc20xa6ZbblOsyINvcTS9UHH3FlepWX/kRuUiUGAPxQ==",
         "dependencies": {
-          "CalqFramework.DataAccess": "0.63.2"
+          "CalqFramework.DataAccess": "1.0.0"
         }
       },
       "CalqFramework.Cmd": {
         "type": "Direct",
-        "requested": "[0.36.1, )",
-        "resolved": "0.36.1",
-        "contentHash": "vC32DuTAzaT18OvR/jfgZ21DqOivIAw903SGhmgyAFw4YfMKp6alk8rFENeRR7feiA3wrlr+t5pHOxcZUCDDQA=="
+        "requested": "[1.0.0, )",
+        "resolved": "1.0.0",
+        "contentHash": "3C8F0IMHla1ZPQlOF64I4exRP35A6Xcj52tljG+kfa0cFtwUycXxucW30QWHf2z1rvnkNKc1sxHculs2Tr+lSQ=="
       },
       "coverlet.collector": {
         "type": "Direct",
@@ -52,8 +52,8 @@
       },
       "CalqFramework.DataAccess": {
         "type": "Transitive",
-        "resolved": "0.63.2",
-        "contentHash": "3lUqexVvDXEw8Ph2Mjswxu2lMRxsHAy+nmZoN6l0ppkRX+Af00Rw1ImC1OlYzoI4S/ynkSI77um0U4LWfVVY1Q=="
+        "resolved": "1.0.0",
+        "contentHash": "pEROcXb9ukFKiiXjoUHxQC1POTQSCU1FNjLCw2js5v9aar7xGnd9stPYyZ64tpB36hEnbS5+ppBtuyujRddExw=="
       },
       "Microsoft.CodeCoverage": {
         "type": "Transitive",
@@ -127,7 +127,7 @@
       "calqframework.flow": {
         "type": "Project",
         "dependencies": {
-          "CalqFramework.Cmd": "[0.36.0, )",
+          "CalqFramework.Cmd": "[1.0.0, )",
           "System.Reflection.MetadataLoadContext": "[10.0.5, )"
         }
       }
