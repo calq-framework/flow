@@ -62,8 +62,15 @@ public static class SyntacticVersioning {
         IEnumerable<string> currentSiblings = Directory.GetFiles(Path.GetDirectoryName(currentDll)!, "*.dll");
         IEnumerable<string> baseSiblings = Directory.GetFiles(Path.GetDirectoryName(baseDll)!, "*.dll");
 
+        // When the base DLL comes from the NuGet cache its directory may not contain
+        // dependency assemblies (they live in separate package folders). Fall back to
+        // the current build's siblings for type resolution — the dependency type names
+        // are stable across versions so this is safe for signature extraction.
+        HashSet<string> baseFileNames = new(baseSiblings.Select(Path.GetFileName)!, StringComparer.OrdinalIgnoreCase);
+        IEnumerable<string> currentFallbacks = currentSiblings.Where(p => !baseFileNames.Contains(Path.GetFileName(p)));
+
         var currentResolver = new PathAssemblyResolver(sharedAssemblies.Concat(currentSiblings).Distinct());
-        var baseResolver = new PathAssemblyResolver(sharedAssemblies.Concat(baseSiblings).Distinct());
+        var baseResolver = new PathAssemblyResolver(sharedAssemblies.Concat(baseSiblings).Concat(currentFallbacks).Distinct());
 
         using var currentMlc = new MetadataLoadContext(currentResolver);
         using var baseMlc = new MetadataLoadContext(baseResolver);
