@@ -114,14 +114,17 @@ public static class BuildPipeline {
         try {
             Directory.CreateDirectory(tempPath);
 
-            // Create a minimal project that references the target package
+            // Create a minimal project that references the target package.
+            // Derive the TFM from the running runtime so the probe stays compatible
+            // with packages that target newer frameworks (e.g. net10.0).
+            string tfm = $"net{Environment.Version.Major}.0";
             string projectPath = Path.Combine(tempPath, "Probe.csproj");
             File.WriteAllText(
                 projectPath,
                 $"""
                  <Project Sdk="Microsoft.NET.Sdk">
                    <PropertyGroup>
-                     <TargetFramework>net9.0</TargetFramework>
+                     <TargetFramework>{tfm}</TargetFramework>
                    </PropertyGroup>
                    <ItemGroup>
                      <PackageReference Include="{packageId}" Version="{versionStr}" />
