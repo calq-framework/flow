@@ -38,8 +38,23 @@ public static class SyntacticVersioning {
             return result;
         }
 
+        // Collect runtime assemblies from all shared frameworks (e.g. NETCore, ASP.NET Core).
+        // The base runtime dir is e.g. .../shared/Microsoft.NETCore.App/9.0.x/
+        // Sibling frameworks like Microsoft.AspNetCore.App live next to it.
         string runtimeDir = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
-        string[] runtimeAssemblies = Directory.GetFiles(runtimeDir, "*.dll");
+        string? sharedRoot = Path.GetDirectoryName(Path.GetDirectoryName(runtimeDir));
+        IEnumerable<string> frameworkAssemblies = Directory.GetFiles(runtimeDir, "*.dll");
+        if (sharedRoot != null && Directory.Exists(sharedRoot)) {
+            frameworkAssemblies = Directory.GetDirectories(sharedRoot)
+                .SelectMany(fw => {
+                    // Pick the latest version directory within each framework
+                    string? latest = Directory.GetDirectories(fw)
+                        .OrderByDescending(d => Path.GetFileName(d))
+                        .FirstOrDefault();
+                    return latest != null ? Directory.GetFiles(latest, "*.dll") : [];
+                });
+        }
+        string[] sharedAssemblies = frameworkAssemblies.ToArray();
 
         // Each MetadataLoadContext gets its own resolver with sibling DLLs from its
         // build directory only. Sharing a resolver causes FileLoadException when both
@@ -47,8 +62,8 @@ public static class SyntacticVersioning {
         IEnumerable<string> currentSiblings = Directory.GetFiles(Path.GetDirectoryName(currentDll)!, "*.dll");
         IEnumerable<string> baseSiblings = Directory.GetFiles(Path.GetDirectoryName(baseDll)!, "*.dll");
 
-        var currentResolver = new PathAssemblyResolver(runtimeAssemblies.Concat(currentSiblings).Distinct());
-        var baseResolver = new PathAssemblyResolver(runtimeAssemblies.Concat(baseSiblings).Distinct());
+        var currentResolver = new PathAssemblyResolver(sharedAssemblies.Concat(currentSiblings).Distinct());
+        var baseResolver = new PathAssemblyResolver(sharedAssemblies.Concat(baseSiblings).Distinct());
 
         using var currentMlc = new MetadataLoadContext(currentResolver);
         using var baseMlc = new MetadataLoadContext(baseResolver);
