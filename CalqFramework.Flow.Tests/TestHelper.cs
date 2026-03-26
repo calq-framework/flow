@@ -45,7 +45,7 @@ public static class TestHelper {
             csprojPath,
             $@"<Project Sdk=""Microsoft.NET.Sdk"">
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Version>{version}</Version>
   </PropertyGroup>
 </Project>");

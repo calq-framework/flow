@@ -54,7 +54,7 @@ public class ProjectDiscoveryTest : IDisposable {
         string parentDir = Path.Combine(_tempDir, "Parent");
         string nestedDir = Path.Combine(parentDir, "Nested");
         Directory.CreateDirectory(nestedDir);
-        File.WriteAllText(Path.Combine(nestedDir, "Nested.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net9.0</TargetFramework></PropertyGroup></Project>");
+        File.WriteAllText(Path.Combine(nestedDir, "Nested.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
 
         List<string> projects = ProjectDiscovery.DiscoverProjects(_tempDir);
 

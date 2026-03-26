@@ -69,7 +69,7 @@ public class VersionResolverTest : IDisposable {
             projPath,
             @"<Project Sdk=""Microsoft.NET.Sdk"">
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <VersionPrefix>3.2.1</VersionPrefix>
     <VersionSuffix>beta</VersionSuffix>
   </PropertyGroup>
@@ -90,7 +90,7 @@ public class VersionResolverTest : IDisposable {
             projPath,
             @"<Project Sdk=""Microsoft.NET.Sdk"">
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Version>1.2.3-rc.1</Version>
   </PropertyGroup>
 </Project>");
