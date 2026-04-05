@@ -32,24 +32,25 @@ runs:
 
         REF="${{ github.action_ref }}"
         
-        # Determine if we need to look up the latest tag over the network
-        if [[ "$REF" == "main" || "$REF" == "latest" || -z "$REF" ]]; then
-          echo "[System] Querying latest release tag from $TOOL_REPO_URL..."
-          # Get highest semver tag: sort by version, take last, strip ref path
-          LATEST_TAG=$(git ls-remote --tags --sort='v:refname' "$TOOL_REPO_URL" 'v*.*.*' | tail -n1 | cut -d/ -f3 | sed 's/\^{}//')
-          
-          if [ -z "$LATEST_TAG" ]; then
-            echo "[Warning] Could not resolve remote tag. Falling back to latest binary."
+        # Build a glob pattern from the ref: @v1.2.3 → exact, @v1.2 → v1.2.*, @v1 → v1.*.*, @latest/main → v*.*.*
+        SEMVER=$(echo "$REF" | grep -oP '\d+\.\d+\.\d+' || true)
+        if [ -n "$SEMVER" ]; then
+          VERSION="$SEMVER"
+          DOTNET_VERSION="$SEMVER"
+        else
+          case "$REF" in
+            *.*) PATTERN="v$(echo "$REF" | grep -oP '\d+\.\d+').*" ;;
+            *[0-9]*) PATTERN="v$(echo "$REF" | grep -oP '\d+').*.*" ;;
+            *) PATTERN="v*.*.*" ;;
+          esac
+          LATEST_TAG=$(git ls-remote --tags --sort='v:refname' "$TOOL_REPO_URL" "$PATTERN" | tail -n1 | cut -d/ -f3 | sed 's/\^{}//')
+          VERSION=$(echo "$LATEST_TAG" | grep -oP '\d+\.\d+\.\d+' || true)
+          if [ -n "$VERSION" ]; then
+            DOTNET_VERSION="$VERSION"
+          else
             VERSION="latest"
             DOTNET_VERSION="*"
-          else
-            VERSION=$(echo "$LATEST_TAG" | grep -oP '\d+\.\d+\.\d+')
-            DOTNET_VERSION="$VERSION"
           fi
-        else
-          # User is pinned to a specific version (e.g., @v1.2.3)
-          VERSION=$(echo "$REF" | grep -oP '\d+\.\d+\.\d+' || echo "latest")
-          DOTNET_VERSION="$VERSION"
         fi
         
         echo "TOOL_VERSION=$VERSION" >> $GITHUB_ENV
