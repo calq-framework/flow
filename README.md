@@ -28,11 +28,11 @@ Traditional versioning relies on human-in-the-loop subjective data (commit messa
 | :--- | :--- | :--- |
 | **Version Source** | Objective IL/metadata diff | Subjective Git history + branching strategy |
 | **Breaking Change Detection** | Automatic (IL comparison) | Manual (commit message `+semver: breaking`) |
-| **Monorepo Support** | Native project graph discovery | Not built-in |
-| **Test Integration** | Auto-discovers and enforces test runs | Not included |
-| **Build / Pack / Push** | Complete CI/CD pipeline orchestration | Not included (versioning only) |
 | **Configuration** | Zero-config / CLI flags | `GitVersion.yml` |
-| **GitHub Action Execution** | Native | Docker (container initialization overhead) |
+| **GitHub Action Execution** | Native composite (millisecond startup) | Docker (container initialization overhead) |
+| **Monorepo Support** | ✅ Native project graph discovery | ❌ |
+| **Test Integration** | ✅ Auto-discovers and enforces test runs | ❌ |
+| **Build / Pack / Push** | ✅ Complete CI/CD pipeline | ❌ Versioning only |
 
 ### Code Comparison
 
