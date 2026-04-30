@@ -1,0 +1,10 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="CalqFramework.Flow.Cli/CalqFramework.Flow.Cli.csproj" />
+  <Project Path="CalqFramework.Flow.Tests/CalqFramework.Flow.Tests.csproj" />
+  <Project Path="CalqFramework.Flow/CalqFramework.Flow.csproj" />
+</Solution>
