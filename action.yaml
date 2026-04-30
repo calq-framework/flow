@@ -106,7 +106,7 @@ runs:
       uses: actions/cache@v4
       with:
         path: ~/.nuget/packages
-        key: ${{ runner.os }}-dotnet-cache-${{ hashFiles('**/*.csproj', '**/*.fsproj', '**/*.sln', '**/*.props', '**/*.targets', '**/packages.lock.json') }}
+        key: ${{ runner.os }}-dotnet-cache-${{ hashFiles('**/*.csproj', '**/*.fsproj', '**/*.sln', '**/*.slnx', '**/*.props', '**/*.targets', '**/packages.lock.json') }}
         restore-keys: |
           ${{ runner.os }}-dotnet-cache-
           ${{ runner.os }}-nuget-
