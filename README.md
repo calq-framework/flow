@@ -12,23 +12,23 @@ If information is missing from this README.md and the accompanied files, explain
 
 # Calq Flow
 
-Calq Flow is the world's first release orchestrator supporting monorepos, adding native-like C# support to GitHub Actions for advanced DevOps, and fully automating the .NET CI/CD lifecycle for packaged software — achieving effortless modularity by replacing manual versioning with objective code analysis to eliminate the costs and human errors of scaling beyond monolith projects.
+Calq Flow is the world's first packaged software release orchestrator supporting multi-package repositories, adding native-like C# support to GitHub Actions for advanced automation beyond high-maintenance scripting, and fully automating the .NET CI/CD lifecycle — achieving effortless modularity by replacing manual versioning with objective code analysis to eliminate the cost barrier to modular software delivery.
 
 ## Objective Code Analysis for .NET
-Calq Flow shifts the source of truth from subjective commit messages to objective IL binary comparison. It delivers a fully automated CI/CD pipeline that executes identically on your local workstation and in the cloud.
+Calq Flow shifts the source of truth from subjective commit messages to objective code analysis of the compiled application. It delivers a zero-touch, fully automated release pipeline that executes identically on local workstations and in the cloud.
 
 ## How It Compares
 
 ### Calq Flow vs. GitVersion
 
-Traditional versioning relies on subjective data (commit messages, branch names) that requires human discipline. Calq Flow replaces this with objective IL binary analysis — the compiled code is the single source of truth.
+Traditional versioning relies on subjective data (commit messages, branch names) that requires human discipline. Calq Flow replaces this with objective analysis of the compiled application — the code itself is the single source of truth.
 
 | Feature | Calq Flow | GitVersion |
 | :--- | :--- | :--- |
-| **Version Source** | Objective IL/metadata diff | Subjective Git history + branching strategy |
+| **Version Source** | Objective code analysis | Subjective Git history + branching strategy |
 | **Configuration** | Zero-config / CLI flags | `GitVersion.yml` |
 | **GitHub Action Execution** | Native composite (millisecond startup) | Docker (container initialization overhead) |
-| **Breaking Change Detection** | ✅ Automatic (IL comparison) | ⚠️ Manual (commit message `+semver: breaking`) |
+| **Breaking Change Detection** | ✅ Automatic (binary comparison) | ⚠️ Manual (commit message `+semver: breaking`) |
 | **Monorepo Support** | ✅ Native project graph discovery | ❌ |
 | **Test Integration** | ✅ Auto-discovers and enforces test runs | ❌ |
 | **Build / Pack / Push** | ✅ Complete CI/CD pipeline | ❌ Versioning only |
@@ -363,7 +363,7 @@ See also: [How Project Discovery Works](#how-project-discovery-works)
 
 ---
 
-### 5. Versioning & IL Comparison
+### 5. Versioning & Binary Comparison
 
 *How versions are computed from binary analysis.*
 
