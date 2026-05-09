@@ -139,12 +139,30 @@ public static class SyntacticVersioning {
                 continue;
             }
 
-            foreach (MemberInfo member in type.GetMembers(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly)) {
+            MemberInfo[] typeMembers;
+            try {
+                typeMembers = type.GetMembers(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly);
+            } catch (FileNotFoundException) {
+                // Transitive dependency not in the resolver. Safe to skip —
+                // the byte-level fallback detects any real change via assembly
+                // reference metadata differences in the compiled output.
+                continue;
+            }
+
+            foreach (MemberInfo member in typeMembers) {
                 if (!ignoreAccessModifiers && !IsMemberAccessible(member)) {
                     continue;
                 }
 
-                string identity = $"{type.FullName}.{member.Name}({GetMemberSignature(member)})";
+                string identity;
+                try {
+                    identity = $"{type.FullName}.{member.Name}({GetMemberSignature(member)})";
+                } catch (FileNotFoundException) {
+                    // Transitive dependency not in the resolver. Safe to skip —
+                    // the byte-level fallback detects any real change.
+                    continue;
+                }
+
                 List<string> attrs = GetFilteredAttributes(member);
                 members[identity] = attrs;
             }
@@ -178,12 +196,33 @@ public static class SyntacticVersioning {
             _ => ""
         };
 
-    private static List<string> GetFilteredAttributes(MemberInfo member) => [
-        .. member.GetCustomAttributesData()
-            .Where(a => !IgnoredAttributes.Contains(a.AttributeType.FullName ?? ""))
-            .Select(a => a.ToString())
-            .OrderBy(a => a)
-    ];
+    private static List<string> GetFilteredAttributes(MemberInfo member) {
+        List<string> result = [];
+        IList<CustomAttributeData> attrs;
+        try {
+            attrs = member.GetCustomAttributesData();
+        } catch (FileNotFoundException) {
+            return result;
+        }
+
+        foreach (var a in attrs) {
+            try {
+                string? fullName = a.AttributeType.FullName;
+                if (fullName != null && IgnoredAttributes.Contains(fullName)) {
+                    continue;
+                }
+
+                result.Add(a.ToString());
+            } catch (FileNotFoundException) {
+                // Transitive dependency not in the resolver. Safe to skip —
+                // if the attribute changed, the compiled IL differs and the
+                // byte-level fallback will catch it.
+            }
+        }
+
+        result.Sort(StringComparer.Ordinal);
+        return result;
+    }
 
     /// <summary>
     ///     Searches for a compiled assembly DLL in standard output directories.
