@@ -159,23 +159,9 @@ public class FlowManager {
         Version targetVersion = VersionBumper.ComputeTargetVersion(latestTag, projectVersions, diffResults);
 
         // ── Phase 3: Pack and push (lockstep — all projects at the same version) ──
-        // Build remaining projects that weren't built in Phase 1 (needed for lockstep packing).
-        if (!dryRun) {
-            var remaining = projects.Where(p => !builtProjects.Contains(Path.GetFullPath(p))).ToList();
-            if (remaining.Count > 0) {
-                BuildPipeline.BuildAll(remaining, projects, testAssociations);
-            }
-        }
-
         var nupkgPaths = new List<string>();
-        foreach (string project in projects) {
-            string? nupkg = BuildPipeline.Pack(project, targetVersion);
-            if (nupkg != null) {
-                nupkgPaths.Add(nupkg);
-            }
-        }
-
         var publishedPackages = new List<string>();
+
         if (dryRun) {
             foreach (string project in projects) {
                 string name = Path.GetFileNameWithoutExtension(project);
@@ -183,6 +169,19 @@ public class FlowManager {
                 publishedPackages.Add(name);
             }
         } else {
+            // Build remaining projects that weren't built in Phase 1 (needed for lockstep packing).
+            var remaining = projects.Where(p => !builtProjects.Contains(Path.GetFullPath(p))).ToList();
+            if (remaining.Count > 0) {
+                BuildPipeline.BuildAll(remaining, projects, testAssociations);
+            }
+
+            foreach (string project in projects) {
+                string? nupkg = BuildPipeline.Pack(project, targetVersion);
+                if (nupkg != null) {
+                    nupkgPaths.Add(nupkg);
+                }
+            }
+
             publishedPackages = PublishPipeline.Execute(nupkgPaths, Sources, sign, apiKey, false);
         }
 
