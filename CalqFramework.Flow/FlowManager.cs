@@ -119,16 +119,8 @@ public class FlowManager {
         }
 
         // ── Phase 1: Build current projects ──
-        // Changed projects are built and tested. Remaining projects are built for lockstep packing.
-        foreach (string project in changedProjects) {
-            BuildPipeline.BuildCurrent(project, testAssociations);
-        }
-
-        foreach (string project in projects) {
-            if (!changedProjects.Contains(project)) {
-                BuildPipeline.BuildCurrent(project, testAssociations);
-            }
-        }
+        // All projects are built in dependency order with correct flags per project.
+        BuildPipeline.BuildAll(projects, testAssociations);
 
         // ── Phase 2: Resolve base DLLs and compare ──
         // Try NuGet download first, fall back to building in shadow copy.
