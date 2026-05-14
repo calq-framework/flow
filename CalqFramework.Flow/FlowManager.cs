@@ -119,8 +119,8 @@ public class FlowManager {
         }
 
         // ── Phase 1: Build current projects ──
-        // All projects are built in dependency order with correct flags per project.
-        BuildPipeline.BuildAll(projects, testAssociations);
+        // Build changed projects (and their transitive dependencies) for IL comparison.
+        HashSet<string> builtProjects = BuildPipeline.BuildAll(changedProjects, projects, testAssociations);
 
         // ── Phase 2: Resolve base DLLs and compare ──
         // Try NuGet download first, fall back to building in shadow copy.
@@ -159,6 +159,14 @@ public class FlowManager {
         Version targetVersion = VersionBumper.ComputeTargetVersion(latestTag, projectVersions, diffResults);
 
         // ── Phase 3: Pack and push (lockstep — all projects at the same version) ──
+        // Build remaining projects that weren't built in Phase 1 (needed for lockstep packing).
+        if (!dryRun) {
+            var remaining = projects.Where(p => !builtProjects.Contains(Path.GetFullPath(p))).ToList();
+            if (remaining.Count > 0) {
+                BuildPipeline.BuildAll(remaining, projects, testAssociations);
+            }
+        }
+
         var nupkgPaths = new List<string>();
         foreach (string project in projects) {
             string? nupkg = BuildPipeline.Pack(project, targetVersion);
