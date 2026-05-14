@@ -18,13 +18,138 @@ public static class BuildPipeline {
         RestoreProject(projectPath);
         string sourceLinkFlags = HasSourceLink(projectPath) ? SourceLinkBuildFlags : "";
 
+        // Build the project with --no-incremental to ensure deterministic/source-link
+        // flags are applied even if it was previously compiled as a transitive dependency
+        // of another project without those flags. Use --no-dependencies to avoid rebuilding
+        // already-built ProjectReference dependencies (which may have different flags).
+        RUN($"dotnet build \"{projectPath}\" -c Release --no-incremental --no-dependencies {DeterministicFlags} {sourceLinkFlags}");
+
         if (testAssociations.TryGetValue(projectPath, out string? testProjectPath)) {
             RestoreProject(testProjectPath);
-            RUN($"dotnet build \"{testProjectPath}\" -c Release {DeterministicFlags} {sourceLinkFlags}");
+            RUN($"dotnet build \"{testProjectPath}\" -c Release --no-dependencies {DeterministicFlags} {sourceLinkFlags}");
             RUN($"dotnet test \"{testProjectPath}\" -c Release --no-build");
-        } else {
-            RUN($"dotnet build \"{projectPath}\" -c Release {DeterministicFlags} {sourceLinkFlags}");
         }
+    }
+
+    /// <summary>
+    ///     Builds all projects in dependency order using --no-dependencies to ensure each
+    ///     project is compiled with its own correct flags. Uses a best-effort topological
+    ///     sort based on ProjectReference, with a queue-retry fallback for edge cases
+    ///     (conditional references, imported props, etc.).
+    /// </summary>
+    public static void BuildAll(List<string> projects, Dictionary<string, string> testAssociations) {
+        List<string> sorted = TopologicalSort(projects);
+        var queue = new Queue<string>(sorted);
+        int failedSinceLastSuccess = 0;
+
+        while (queue.Count > 0) {
+            string project = queue.Dequeue();
+            try {
+                BuildCurrent(project, testAssociations);
+                failedSinceLastSuccess = 0;
+            } catch {
+                failedSinceLastSuccess++;
+                if (failedSinceLastSuccess >= queue.Count + 1) {
+                    // No progress — a full pass with no successes. Re-throw the error.
+                    throw;
+                }
+
+                queue.Enqueue(project);
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Best-effort topological sort of projects based on ProjectReference elements.
+    ///     Leaves (projects with no local dependencies) come first.
+    ///     Falls back gracefully if references can't be resolved.
+    /// </summary>
+    private static List<string> TopologicalSort(List<string> projects) {
+        // Map normalized project paths to their index for quick lookup
+        var pathToIndex = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        for (int i = 0; i < projects.Count; i++) {
+            pathToIndex[Path.GetFullPath(projects[i])] = i;
+        }
+
+        // Build adjacency: dependencies[i] = set of indices that project i depends on
+        var dependencies = new List<HashSet<int>>();
+        for (int i = 0; i < projects.Count; i++) {
+            dependencies.Add([]);
+        }
+
+        for (int i = 0; i < projects.Count; i++) {
+            foreach (string refPath in GetProjectReferences(projects[i])) {
+                string normalizedRef = Path.GetFullPath(refPath);
+                if (pathToIndex.TryGetValue(normalizedRef, out int depIndex)) {
+                    dependencies[i].Add(depIndex);
+                }
+            }
+        }
+
+        // Kahn's algorithm: repeatedly pick projects with no unresolved dependencies
+        var result = new List<string>();
+        var available = new Queue<int>();
+        var inDegree = new int[projects.Count];
+
+        // Compute in-degree (how many projects depend on each)
+        // Actually we need: for each project, how many of its dependencies are not yet built
+        var remaining = dependencies.Select(d => new HashSet<int>(d)).ToList();
+
+        for (int i = 0; i < projects.Count; i++) {
+            if (remaining[i].Count == 0) {
+                available.Enqueue(i);
+            }
+        }
+
+        while (available.Count > 0) {
+            int idx = available.Dequeue();
+            result.Add(projects[idx]);
+
+            // Remove this project from others' dependency sets
+            for (int i = 0; i < projects.Count; i++) {
+                if (remaining[i].Remove(idx) && remaining[i].Count == 0) {
+                    available.Enqueue(i);
+                }
+            }
+        }
+
+        // Append any projects not reached (shouldn't happen in valid repos, but be safe)
+        for (int i = 0; i < projects.Count; i++) {
+            if (!result.Contains(projects[i])) {
+                result.Add(projects[i]);
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    ///     Parses ProjectReference Include paths from a csproj file.
+    ///     Returns absolute paths resolved relative to the project's directory.
+    /// </summary>
+    private static List<string> GetProjectReferences(string projectPath) {
+        var refs = new List<string>();
+        string projectDir = Path.GetDirectoryName(Path.GetFullPath(projectPath))!;
+
+        try {
+            var doc = new XmlDocument();
+            doc.Load(projectPath);
+
+            XmlNodeList? nodes = doc.SelectNodes("/Project/ItemGroup/ProjectReference");
+            if (nodes != null) {
+                foreach (XmlElement node in nodes) {
+                    string? include = node.GetAttribute("Include");
+                    if (!string.IsNullOrEmpty(include)) {
+                        string fullPath = Path.GetFullPath(Path.Combine(projectDir, include));
+                        refs.Add(fullPath);
+                    }
+                }
+            }
+        } catch {
+            // If parsing fails, return empty — the queue retry will handle ordering
+        }
+
+        return refs;
     }
 
     /// <summary>
