@@ -32,13 +32,21 @@ public static class BuildPipeline {
     }
 
     /// <summary>
-    ///     Builds all projects in dependency order using --no-dependencies to ensure each
+    ///     Builds projects in dependency order using --no-dependencies to ensure each
     ///     project is compiled with its own correct flags. Uses a best-effort topological
     ///     sort based on ProjectReference, with a queue-retry fallback for edge cases
     ///     (conditional references, imported props, etc.).
+    ///     When <paramref name="projectsToBuild"/> is a subset of <paramref name="allProjects"/>,
+    ///     their transitive dependencies are included automatically.
+    ///     Returns the set of normalized paths that were successfully built.
     /// </summary>
-    public static void BuildAll(List<string> projects, Dictionary<string, string> testAssociations) {
-        List<string> sorted = TopologicalSort(projects);
+    public static HashSet<string> BuildAll(List<string> projectsToBuild, List<string> allProjects, Dictionary<string, string> testAssociations) {
+        var buildSet = GetTransitiveClosure(projectsToBuild, allProjects);
+        List<string> sorted = TopologicalSort(allProjects)
+            .Where(p => buildSet.Contains(Path.GetFullPath(p)))
+            .ToList();
+
+        var built = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var queue = new Queue<string>(sorted);
         int failedSinceLastSuccess = 0;
 
@@ -46,6 +54,7 @@ public static class BuildPipeline {
             string project = queue.Dequeue();
             try {
                 BuildCurrent(project, testAssociations);
+                built.Add(Path.GetFullPath(project));
                 failedSinceLastSuccess = 0;
             } catch {
                 failedSinceLastSuccess++;
@@ -57,6 +66,38 @@ public static class BuildPipeline {
                 queue.Enqueue(project);
             }
         }
+
+        return built;
+    }
+
+    /// <summary>
+    ///     Expands a set of projects to include their transitive ProjectReference dependencies
+    ///     within the full project list.
+    /// </summary>
+    private static HashSet<string> GetTransitiveClosure(List<string> seeds, List<string> allProjects) {
+        var pathToProject = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (string p in allProjects) {
+            pathToProject[Path.GetFullPath(p)] = p;
+        }
+
+        var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var stack = new Stack<string>(seeds.Select(Path.GetFullPath));
+
+        while (stack.Count > 0) {
+            string current = stack.Pop();
+            if (!result.Add(current)) continue;
+
+            if (pathToProject.TryGetValue(current, out string? projectPath)) {
+                foreach (string dep in GetProjectReferences(projectPath)) {
+                    string normalizedDep = Path.GetFullPath(dep);
+                    if (!result.Contains(normalizedDep)) {
+                        stack.Push(normalizedDep);
+                    }
+                }
+            }
+        }
+
+        return result;
     }
 
     /// <summary>

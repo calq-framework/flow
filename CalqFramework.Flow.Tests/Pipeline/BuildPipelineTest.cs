@@ -143,9 +143,7 @@ public class BuildPipelineTest : IDisposable {
         Dictionary<string, string> testAssociations = TestProjectAssociation.FindTestProjects(projects, repoRoot);
 
         // Phase 1: Build all projects (same as FlowManager — all are "changed" on first publish)
-        foreach (string project in projects) {
-            BuildPipeline.BuildCurrent(project, testAssociations);
-        }
+        BuildPipeline.BuildAll(projects, projects, testAssociations);
 
         // Phase 3: Pack all projects at target version
         Version targetVersion = new(1, 1, 2);
