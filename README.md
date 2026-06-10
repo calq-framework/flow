@@ -14,8 +14,43 @@ If information is missing from this README.md and the accompanied files, explain
 
 Calq Flow is a workflow and software delivery engine. Designed for fully automated, error-free versioning and release management of modular software and CLI-tool-driven workflows.
 
+## Comparison
+
+### Versioning & Release
+
+| Feature | Calq Flow | Commit-Convention Release Tools | Manual-Changeset Release Tools | Tag/History-Based Versioners | Monorepo Version Managers |
+|---|---|---|---|---|---|
+| Version calculation basis | ✅ IL binary diff | ⚠️ commit message keywords | ⚠️ changeset files | ⚠️ tag distance / commit count | ⚠️ commit messages per package |
+| Breaking change detection | ✅ automatic (API surface) | ❌ manual classification | ❌ manual classification | ❌ none | ❌ manual classification |
+| Convention-free operation | ✅ no conventions required | ❌ conventional commits | ❌ changeset files per PR | ✅ tag-only | ❌ conventional commits |
+| False positive prevention | ✅ compiler attribute filtering | ❌ any "feat:" bumps | ❌ any changeset bumps | ⚠️ height-based increment | ❌ any "feat:" bumps |
+| Unnecessary release prevention | ✅ binary no-change = no release | ❌ commit = release | ❌ changeset = release | ⚠️ release decision external | ❌ commit = release |
+| Monorepo support | ✅ automatic project discovery | ⚠️ plugin per package | ⚠️ config per package | ⚠️ tag prefix per project | ✅ built-in |
+| .NET-native | ✅ IL analysis + .csproj | ❌ Node.js ecosystem | ❌ Node.js ecosystem | ✅ .NET-native | ❌ Node.js ecosystem |
+| Reproducible builds | ✅ deterministic + lock file | ❌ not in scope | ❌ not in scope | ❌ not in scope | ❌ not in scope |
+| Test enforcement before publish | ✅ automatic discovery + gating | ❌ separate CI step | ❌ separate CI step | ❌ separate CI step | ❌ separate CI step |
+| Change metadata | ✅ structured JSON (IL diff) | ✅ markdown changelog | ✅ markdown changelog | ❌ | ✅ markdown changelog |
+| Pre-release / alpha channel | ❌ manual version edit | ✅ built-in branch rules | ✅ pre-release mode | ✅ automatic suffix | ✅ built-in |
+
+### Build & Publish Orchestration
+
+| Feature | Calq Flow | .NET Build Automation Frameworks | CI/CD Pipeline YAML | Package Manager Publish Commands |
+|---|---|---|---|---|
+| Zero configuration | ✅ convention-based discovery | ❌ build script required | ❌ YAML per workflow | ❌ manual per package |
+| Topological build order | ✅ automatic from project references | ⚠️ task-level only | ⚠️ manual job dependencies | ❌ manual ordering |
+| Binary-level change detection | ✅ IL / metadata comparison | ❌ | ❌ | ❌ |
+| Build isolation | ✅ shadow copy, source unmodified | ⚠️ user responsibility | ❌ shared workspace | ❌ shared workspace |
+| Cross-source republishing | ✅ re-push existing package | ❌ not built-in | ⚠️ manual artifact forwarding | ❌ not built-in |
+| Idempotent push | ✅ `--skip-duplicate` built-in | ⚠️ user responsibility | ⚠️ user responsibility | ⚠️ manual flag |
+| Package signing | ✅ single `--sign` parameter | ⚠️ custom target | ⚠️ manual step | ⚠️ manual step |
+| Dry-run mode | ✅ full simulation + JSON output | ⚠️ execution plan only | ❌ | ❌ |
+| Machine-readable output | ✅ structured JSON on stdout | ❌ log output | ❌ log output | ❌ log output |
+| Scale-to-zero | ✅ CLI tool, no daemon | ✅ CLI tool | ✅ runner-based | ✅ CLI tool |
+| Multi-language support | ❌ .NET only | ⚠️ .NET-focused | ✅ any language | ⚠️ per-ecosystem |
+
 ## Table of Contents
 
+- [Comparison](#comparison)
 - [Usage - Calq Flow](#usage---calq-flow)
 - [1. Setup](#1-setup)
   - [1.1 Configuration](#11-configuration)
