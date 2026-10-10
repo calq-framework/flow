@@ -84,8 +84,36 @@ public static class SyntacticVersioning {
         Assembly currentAssembly = currentMlc.LoadFromAssemblyPath(currentDll);
         Assembly baseAssembly = baseMlc.LoadFromAssemblyPath(baseDll);
 
-        Dictionary<string, List<string>> currentMembers = ExtractMembers(currentAssembly, ignoreAccessModifiers);
-        Dictionary<string, List<string>> baseMembers = ExtractMembers(baseAssembly, ignoreAccessModifiers);
+        // A base assembly may reference types that no longer exist in the
+        // current dependency set (e.g. a type moved to another namespace).
+        // Metadata resolution then fails with TypeLoadException/ReflectionTypeLoadException
+        // rather than FileNotFoundException — fall back to byte-level comparison.
+        Dictionary<string, List<string>>? currentMembers;
+        Dictionary<string, List<string>>? baseMembers;
+        try {
+            currentMembers = ExtractMembers(currentAssembly, ignoreAccessModifiers);
+        } catch (Exception ex) when (ex is TypeLoadException or ReflectionTypeLoadException or FileNotFoundException) {
+            currentMembers = null;
+        }
+
+        try {
+            baseMembers = ExtractMembers(baseAssembly, ignoreAccessModifiers);
+        } catch (Exception ex) when (ex is TypeLoadException or ReflectionTypeLoadException or FileNotFoundException) {
+            baseMembers = null;
+        }
+
+        if (currentMembers == null || baseMembers == null) {
+            result.ByteLevelFallback = true;
+            if (!FilesAreEqual(currentDll, baseDll)) {
+                result.Changes.Add(
+                    new MemberChange {
+                        MemberIdentity = projectName,
+                        Kind = ChangeKind.ILChanged
+                    });
+            }
+
+            return result;
+        }
 
         // Deleted members (breaking)
         foreach (string? member in baseMembers.Keys.Except(currentMembers.Keys)) {
@@ -134,7 +162,11 @@ public static class SyntacticVersioning {
     private static Dictionary<string, List<string>> ExtractMembers(Assembly assembly, bool ignoreAccessModifiers) {
         var members = new Dictionary<string, List<string>>();
 
-        foreach (Type type in assembly.GetTypes()) {
+        foreach (Type? type in GetLoadableTypes(assembly)) {
+            if (type == null) {
+                continue;
+            }
+
             if (!type.IsPublic && !ignoreAccessModifiers) {
                 continue;
             }
@@ -142,23 +174,23 @@ public static class SyntacticVersioning {
             MemberInfo[] typeMembers;
             try {
                 typeMembers = type.GetMembers(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly);
-            } catch (FileNotFoundException) {
-                // Transitive dependency not in the resolver. Safe to skip —
+            } catch (Exception ex) when (ex is FileNotFoundException or TypeLoadException) {
+                // Dependency not in the resolver or type moved/removed. Safe to skip —
                 // the byte-level fallback detects any real change via assembly
                 // reference metadata differences in the compiled output.
                 continue;
             }
 
             foreach (MemberInfo member in typeMembers) {
-                if (!ignoreAccessModifiers && !IsMemberAccessible(member)) {
+                if (!ignoreAccessModifiers && !IsMemberAccessibleSafe(member)) {
                     continue;
                 }
 
                 string identity;
                 try {
                     identity = $"{type.FullName}.{member.Name}({GetMemberSignature(member)})";
-                } catch (FileNotFoundException) {
-                    // Transitive dependency not in the resolver. Safe to skip —
+                } catch (Exception ex) when (ex is FileNotFoundException or TypeLoadException) {
+                    // Dependency not in the resolver or type moved/removed. Safe to skip —
                     // the byte-level fallback detects any real change.
                     continue;
                 }
@@ -169,6 +201,22 @@ public static class SyntacticVersioning {
         }
 
         return members;
+    }
+
+    private static bool IsMemberAccessibleSafe(MemberInfo member) {
+        try {
+            return IsMemberAccessible(member);
+        } catch (Exception ex) when (ex is FileNotFoundException or TypeLoadException) {
+            return false;
+        }
+    }
+
+    private static Type?[] GetLoadableTypes(Assembly assembly) {
+        try {
+            return assembly.GetTypes();
+        } catch (ReflectionTypeLoadException ex) {
+            return ex.Types;
+        }
     }
 
     private static bool IsMemberAccessible(MemberInfo member) =>
@@ -201,7 +249,7 @@ public static class SyntacticVersioning {
         IList<CustomAttributeData> attrs;
         try {
             attrs = member.GetCustomAttributesData();
-        } catch (FileNotFoundException) {
+        } catch (Exception ex) when (ex is FileNotFoundException or TypeLoadException) {
             return result;
         }
 
@@ -213,8 +261,8 @@ public static class SyntacticVersioning {
                 }
 
                 result.Add(a.ToString());
-            } catch (FileNotFoundException) {
-                // Transitive dependency not in the resolver. Safe to skip —
+            } catch (Exception ex) when (ex is FileNotFoundException or TypeLoadException) {
+                // Dependency not in the resolver or type moved/removed. Safe to skip —
                 // if the attribute changed, the compiled IL differs and the
                 // byte-level fallback will catch it.
             }
